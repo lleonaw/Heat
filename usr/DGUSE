@@ -1,0 +1,78 @@
+c-----------------------------------------------------------------------
+c - | Parameters & constants 
+      parameter(lf=lx1*lz1*2*ldim*lelt)
+      parameter(lt=lx1*ly1*lz1*lelt)
+      common /dgconst/ miu,gama, prt
+      real miu,gama, prt
+c-----------------------------------------------------------------------
+c - | Saved solution 
+      common /vardg/    rh(lx1,ly1,lz1,lelt),  En(lx1,ly1,lz1,lelt)
+     $               , rvx(lx1,ly1,lz1,lelt), rvy(lx1,ly1,lz1,lelt)
+     $               , rvz(lx1,ly1,lz1,lelt), ppr(lx1,ly1,lz1,lelt) 
+     $               , dux(lx1,ly1,lz1,lelt), duy(lx1,ly1,lz1,lelt)
+     $               , duz(lx1,ly1,lz1,lelt), tep(lx1,ly1,lz1,lelt) 
+c - | For pre_comp, the newest solutions 
+      common /scr_dg/  tmrh(lx1,ly1,lz1,lelt), tmen(lx1,ly1,lz1,lelt)
+     $               , tmrx(lx1,ly1,lz1,lelt), tmry(lx1,ly1,lz1,lelt)
+     $               , tmrz(lx1,ly1,lz1,lelt), tmpr(lx1,ly1,lz1,lelt) 
+     $               , tmux(lx1,ly1,lz1,lelt), tmuy(lx1,ly1,lz1,lelt)
+     $               , tmuz(lx1,ly1,lz1,lelt), tme (lx1,ly1,lz1,lelt)
+     $               , uij(lx1*ly1*lz1,6,lelt)
+     $               , tij(lx1*ly1*lz1,6,lelt)
+c - | For diffusion operator 
+      common /dif_dg/  shr(lt,ldim)  , shu(lt,ldim)  
+     $               , shv(lt,ldim)  , shw(lt,ldim)  
+     $               , she(lt,ldim)  
+     $               , udx(lx1*ly1*lz1,lelt), udy(lx1*ly1*lz1,lelt)
+     $               , vdx(lx1*ly1*lz1,lelt), vdy(lx1*ly1*lz1,lelt)
+     $               , wdx(lx1*ly1*lz1,lelt), wdy(lx1*ly1*lz1,lelt)
+     $               , udz(lx1*ly1*lz1,lelt), vdz(lx1*ly1*lz1,lelt) 
+     $               , wdz(lx1*ly1*lz1,lelt) 
+     $               , edx(lx1*ly1*lz1,lelt), edy(lx1*ly1*lz1,lelt) 
+     $               , edz(lx1*ly1*lz1,lelt) 
+c-----------------------------------------------------------------------
+c - | Boundary values arrays 
+      common /bcflx/   brh(lf), brx(lf), bry(lf), brz(lf)
+     $               , bux(lf), buy(lf), buz(lf), bpr(lf)
+     $               , ben(lf)
+c - | Temporary boundary values
+      common /bctmp/   rho, rux, ruy, ruz, enr, pp
+c-----------------------------------------------------------------------
+c - |  For Roe flux 
+c   \-------------------------------------------------------------------
+c   \--  star variables & speed of sound 
+      common /varroe/  rflx(lf,5) 
+     $               , rhsr(lf), uxsr(lf), uysr(lf), uzsr(lf)
+     $               , ehsr(lf), cpd(lf), cpd2(lf)
+     $               , dw1(lf), dw2(lf), dw3(lf), dw4(lf), dw5(lf)
+c   \-------------------------------------------------------------------
+c   \--  fluxes, prim variables, pressure , enthalpy 
+      common /roescr/   fn(lf,5), bfn(lf,5)
+     $               , prv(lf,5), bprv(lf,5)
+     $               ,   prs(lf), bprs(lf)
+     $               ,   eth(lf), beth(lf)
+     $               ,  difr(lf), difp(lf)
+     $               ,  difu(lf), difv(lf), difw(lf)
+c-----------------------------------------------------------------------
+c - |  For Lax-Friedrichs flux 
+      common /lfscr/   f1f(lf), g1f(lf), h1f(lf)
+     $               , fcf(lf), gcf(lf), hcf(lf)
+     $               , cuf(lf), udf(lf),  lm(lf)
+      real lm
+c-----------------------------------------------------------------------
+c - |  For Central flux in diffusion operator
+      common /ctscr/   fd (lt), gd (lt), hd (lt)
+     $               , fdf(lf), gdf(lf), hdf(lf)
+     $               , fcd(lf), gcd(lf), hcd(lf)
+     $               , fdd(lf), gdd(lf), hdd(lf)
+     $               , duc(lf), dud(lf)
+c-----------------------------------------------------------------------
+c - |  Heat problem 
+      common /dgheat/  rcp, kcd, prd
+      real rcp, kcd, prd
+c-----------------------------------------------------------------------
+c - |  Logical switches 
+      common /dglogi/  iflim, ifstr, ifdbg, ifdeal, ifdifu, ifhedg 
+      logical iflim, ifstr, ifdbg, ifdeal, ifdifu, ifhedg 
+      common /dgtype/  tmstpp, flxtyp, htflx
+      integer tmstpp, flxtyp, htflx

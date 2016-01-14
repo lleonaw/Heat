@@ -1,0 +1,197 @@
+      subroutine dg_flow
+      subroutine izero8(a,n)
+      subroutine iface_vert_int8(fa,va,jz0,jz1,nel)
+      subroutine setup_dg_gs(dg_hndl,nx,ny,nz,nel,melg,vertex)
+      subroutine dg_advect_setup
+      subroutine dg_set_fc_ptr
+      subroutine dg_advect_execute   ! do time stepping here? 2+3
+      subroutine estimate_strouhal
+      subroutine set_obj  ! define objects for surface integrals
+      subroutine err_sol_vel(evx,evy,ivx,ivy)
+      subroutine setlogi ! 2+3
+      subroutine setallic ! 2+3
+      subroutine setic ! 2+3
+      subroutine cmp_mach(mxa,mxn,mch)  ! compute mach number  
+      subroutine  dg_cfl(cfl,kstep)  ! compute cfl 
+      subroutine get_duxyz(dux, duy, duz, rh, rvx, rvy, rvz) 
+      subroutine dg_advect(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_euler1(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ssprk2(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ssprk3(kstep) ! Advance u^{n-1} --> u^n
+      subroutine copyall(ro1,ro2,ro3,ro4,ro5
+      subroutine ctr2full(vol_ary, ctr_ary)
+      subroutine ctr2face(faceary, ctr_ary)
+      subroutine full2face(faceary, vol_ary)
+      subroutine face2full(vol_ary, faceary)
+      subroutine add_face2full(vol_ary, faceary)
+      subroutine comp_dg_rhs_all(rhs1,rhs2,rhs3,rhs4,rhs5,tm)
+      subroutine comp_dg_rhs(rhs,flg,tm)
+      subroutine pre_difu_dg        ! solve aux var. 
+      subroutine difu_dg(rhs,flg)
+      subroutine vis_srf(rhs,flg) ! 3+2
+      subroutine vis_dif_f(flg)
+      subroutine vis_dif_u(tau,flg)
+      subroutine cmp_beta(btx,bty,btz) ! 3+2
+      subroutine cmp_tau(tau,flg) ! 3+2
+      subroutine vis_ctr_f(flg) 
+      subroutine bc_flx_vis(bf1,bg1,bh1,flg) ! 3 + 2
+      subroutine vis_vol(rhs,flg) ! ! 3+2? 
+      subroutine vis_flx(flg)  ! 3 + 2 
+      subroutine aux_slv(sh,flg) ! 
+      subroutine aux_s(sh,vua,uaf) ! 3+2
+      subroutine aux_srf(ucf,ua,flg) ! 3+2
+      subroutine aux_dif_u(flg)
+      subroutine aux_ctr_u(ua,flg)
+      subroutine bc_aux_eval(buf,flg) ! 3+2
+      subroutine surf_pnt_aux(cu 
+      subroutine surf_pnt_aux2(cu 
+      subroutine aux_vol(vu,ua) ! ! 3+2? 
+      subroutine grad_t_u(ux,uy,uz,mua) !  3
+      subroutine grad_t_u2(ux,uy,mua) !  2
+      subroutine aux_u(ua, flg)
+      subroutine pre_comp
+      subroutine get_fpr(fpr) ! 3
+      subroutine vol_eval_d(fx1,fx2,gx1,gx2,hx1,hx2
+      subroutine vol_eval2(f1,g1,f2,g2,flg) ! 2
+      subroutine vol_eval(f1,g1,h1,f2,g2,h2,flg) ! 3
+      subroutine vol_res(rhs,flg)
+      subroutine vol_strg(rhs,flg) ! 
+      subroutine vol_weak_d(rhs,flg) ! ! 3+2? deal 
+      subroutine vol_weak(rhs,flg) ! ! 3+2? 
+      subroutine surf_res(flx,flg)
+      subroutine flx_lf_d(flx,flg) ! 3+2
+      subroutine ctr_inter_d(flg) 
+      subroutine dif_inter_d(flg) ! 3+2
+      subroutine map_faced(ju,u,mx,md,fdim,idir) ! GLL->GL interpolation
+      subroutine flx_lf(flx,flg) ! 3+2
+      subroutine ctr_inter(flg)
+      subroutine dif_inter(flg) ! 3+2
+      subroutine bc_cons_eval(buf,flg) ! 3+2
+      subroutine bc_flx_eval(bf1,bg1,bh1,flg) ! 3 + 2
+      subroutine flx_roe_3d(flx,flg)
+      subroutine cmp_roe_3d ! for 3D 
+      subroutine eval_fn_3d !  !
+      subroutine prim2cons_2( orh, orx, ory, oen
+      subroutine cons2prim_2( orh, oux, ouy, oen, opr
+      subroutine cons2prim( orh, oux, ouy, ouz, oen, opr
+      subroutine euler_flx_3d( ofx, opv, opr
+      subroutine roe_star_3d !  !
+      subroutine gs_roe_star_3d( mlsrh, smsrh
+      subroutine cmp_dw_3d !  !
+      subroutine gs_roe_dif_3d !  !
+      subroutine cmp_rflx_3d ! !
+      subroutine cmp_enth( enth, prmv, prsu)  ! 
+      subroutine col_area_all(flx)
+      subroutine rot2nt_3d(rn,rt,rt2,arx,ary,arz) ! from x-y to n-t 
+      subroutine rot2xy_3d(arx,ary,arz,rn,rt,rt2) ! from n-t to x-y 
+      subroutine full2face_all2( rhf,  ruf,  rvf,  enf
+      subroutine full2face_all( rhf,  ruf,  rvf,  rwf,  enf
+      subroutine copy_all2(fo1,fo2,fo3,fo4
+      subroutine copy_all(fo1,fo2,fo3,fo4,fo5
+      subroutine chsign_5(fl1,fl2,fl3,fl4,fl5,n) 
+      subroutine chsign_all(fl, n) 
+      subroutine add2_all(fl, bfl, n) 
+      subroutine cmult_all2(fl1,fl2,fl3,fl4, c, n) 
+      subroutine gs_add_bc_all2(flx1, flx2, flx3, flx4
+      subroutine cmult_all(fl, c, n)  ! does not belong here 
+      subroutine gs_add_bc_all(flxa, bfxa) 
+      subroutine gs_add_bc(flx, bflx) 
+      subroutine gs_mul_bc(flx, bflx) 
+      subroutine fil_inter( bf, cons) ! fill 0 for inter
+      subroutine userbc_o(ix,iy,iz,iside,e,eg)
+      subroutine userbc_sym(ix,iy,iz,iside,e,eg)
+      subroutine userbc_w_vis(ix,iy,iz,iside,e,eg)
+      subroutine userbc_w(ix,iy,iz,iside,e,eg)
+      subroutine surf_pnt_conv2(cu 
+      subroutine surf_pnt2(f1,g1
+      subroutine surf_pnt_conv(cu 
+      subroutine surf_pnt(f1,g1,h1
+      subroutine cmp_lm  ! 3+2
+      subroutine surf_eval2(flg)
+      subroutine surf_eval(flg)
+      subroutine outfld3d_deal_e1(x,txt10)  ! print out 3d de-al. array 
+      subroutine outfld3d_deal(x,txt10)  ! print out 3d de-al. array 
+      subroutine outfldzd_e1(x,txt10,iz)  ! print out one elem 2d array on a level
+      subroutine outfldzd(x,txt10,iz)  ! print out 2d array on a level
+      subroutine outface3d_all(x,txt10)  ! print out 3d array level by levl
+      subroutine outface3d(x,txt10)  ! print out 3d array level by levl
+      subroutine outfld3d_all(x,txt10)  ! print out 3d array all level
+      subroutine outfld3d(x,txt10)  ! print out 3d array 2 slices
+      subroutine outfldz1_bg(x,txt10,iz)  
+      subroutine outfldz1(x,txt10,iz)  ! print out 2d array on a level
+      subroutine printmax_ctr(rhc, rvxc, rvyc, rvzc, Enc, k)  ! 2+3
+      subroutine printmax_fac1(r1)  ! 2+3
+      subroutine printmax_fac(rhf, rvxf, rvyf, rvzf, Enf, k)  ! 2+3
+      subroutine printmax_1(r1)  ! 2+3
+      subroutine printmax(rh, rvx, rvy, rvz, En, k)  ! 2+3
+      subroutine comp_sij_e(sij,nij,u,v,w,ur,us,ut,vr,vs,vt,wr,ws,wt,e)
+      subroutine slopelim(rh,rvx,rvy,rvz,En)
+      subroutine slopelim3d_zs(rha,rvxa,rvya,rvza,enra) ! 2 
+      subroutine slopelim3d(rha,rvxa,rvya,rvza,enra) ! 3
+      subroutine fill2full_all(fcv1,fcv2,fcv3,fcv4,fcv5
+      subroutine lim_soln(lrh, lrvx, lrvy, lrvz, lenr
+      subroutine eval_alp(al1,al2,al3,al4,al5
+      subroutine init_alc(alc1, alc2, alc3, alc4, alc5)
+      subroutine init_ifrng(ifin1, ifin2, ifin3, ifin4, ifin5)
+      subroutine set_ifrng(ifin1, ifin2, ifin3, ifin4, ifin5
+      subroutine exm_frm_fac( max1, max2, max3, max4, max5
+      subroutine gs_op_mx(mx1,mx2,mx3,mx4,mx5) ! 3
+      subroutine gs_op_mn(mn1,mn2,mn3,mn4,mn5) ! 3
+      subroutine elm_avg3(x_c, y_c, z_c, rhc, rhuc, rhvc, rhwc, enc
+      subroutine slopelim2d_zs(rha,rvxa,rvya,rvza,enra) ! 2 
+      subroutine pos_pr(theta2,p_rh,rvxa,rvya,rvza,enra
+      subroutine get_t_quad2(tx
+      subroutine get_t_quad3(tx
+      subroutine lm_all( lrh,  lru,  lrv,  lrw, lenr
+      subroutine elm_avg_3(rhc, rhuc, rhvc, rhwc, enc
+      subroutine pos_rh(prh,rho,rhc,eps,e) ! 
+      subroutine mn_sij(mnu,u,e) ! for elem # e 
+      subroutine intp_expd(jgx,jgy,jgz,ng,nl,u,if3d,idir,e) 
+      subroutine local_intp(jgx,jgy,jgz,nl,u,ng,jg,jgt
+      subroutine local_intp3(jgx,jgy,jgz,ng,u,nl,jg,jgt
+      subroutine local_intp2(jgx,jgy,ng,u,nl,jg,jgt
+      subroutine slopelim2d(rha,rvxa,rvya,rvza,enra) ! 2
+      subroutine get_pres(pr, rh, ru, rv, en, gama, n)  ! 2
+      subroutine get_pres3(pr, rh, ru, rv, rw, en, gama, n)  ! 2
+      subroutine limt_cons(lrh, lrvx, lrvy, lenr, lmp
+      subroutine diff_sl(drh, du, dv, dp
+      subroutine lim_grad(lrxc, lryc, luxc, luyc, lvxc, lvyc
+      subroutine ctr_grad(prpxc, prpyc, pupxc, pupyc, pvpxc, pvpyc
+      subroutine fac_grad(prpx,prpy,pupx,pupy,pvpx,pvpy,pppx,pppy
+      subroutine vt_prim(vrh, vux, vuy, vpr ! 2 
+      subroutine lift_3d_surf( brh3, brx3, bry3, bpr3
+      subroutine get_ctr_b(brhc,buc, bvc,bprc   ! ! 2 
+      subroutine get_ngh(ngh) ! 2+3? not called anywhere
+      subroutine area_face(arf,x_c,y_c,ccod,vcod) ! 
+      subroutine lg_false(larry,n)  ! init to .false. 
+      subroutine cntr_coor(ccod,x_c,y_c,vcod,ngb) ! 2 
+      subroutine vert_coor(vcoor) ! ! 2
+      subroutine elm_avg(x_c, y_c, rhc, rhuc, rhvc, enc, uxc, uyc
+      subroutine slopelim1d(rh,rvx,rvy,rvz,enr)
+      subroutine slopelimN(ulm,u)  
+      subroutine slopelimLin(ulm,ul,xl,x0,vm1,v0,vp1,ie) 
+      subroutine cmp_avg_vs(uave, xave, yave, zave, us, ue, un, uw, 
+      subroutine cmp_van_1d(vanf,vinv) !  1D Vandermonde 
+      subroutine minmod(sv,v,nv) 
+      subroutine massf(ub,u)  
+      subroutine massf_diag(ub,u)  
+      subroutine massf_rect(ub,u)   ! 
+      subroutine massf_curv(ub,u)  ! ! 
+      subroutine invbf(uivb,u)   ! 3 + 2
+      subroutine invbf_diag(uivb,u)  
+      subroutine invbf_rect(uivb,u)  
+      subroutine tensr2(v,nv,u,nu,A,Bt,w)
+      subroutine invbf_curv(uivb,u)  
+      subroutine full_mass_1d(bf,bi,mp,np,jgl,jgt,w)
+      subroutine grad_m1_t2(u,fx,fy,ifdal)
+      subroutine grad_dbm1_t2(u,fx,fy) ! ! 
+      subroutine grad_bm1_t2(u,fx,fy) ! 
+      subroutine grad_m1_t(u,fx,fy,fz,ifdal) ! 2+3???
+      subroutine grad_dbm1_t_col2add3(u
+      subroutine grad_dbm1_t_col2add2(u
+      subroutine grad_dbm1_t_col2add1(u
+      subroutine grad_dbm1_t_col2(u,fx1,fx2,fy1,fy2,fz1,fz2) ! ! 
+      subroutine grad_dbm1_t(u,fx,fy,fz) ! ! 
+      subroutine grad_bm1_t(u,fx,fy,fz) !  3+2
+      subroutine dg_heat
+      subroutine dg_advect_execute_ht   ! 
