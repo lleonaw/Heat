@@ -8603,13 +8603,13 @@ c     gama = 1.4
 
 c     call dg_advect_execute
       if(ifhedg) then 
-        call dg_advance_execute_ht 
+        call dg_advect_execute_ht 
       endif 
 
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dg_advance_execute_ht   ! !
+      subroutine dg_advect_execute_ht   ! !
 c     heat problem 
       include 'SIZE'
       include 'TOTAL'
@@ -8646,7 +8646,7 @@ c    Init for dg
 
       do kstep=1,nsteps
 
-         call dg_advance_ht(kstep)  ! ! 
+         call dg_advect_ht(kstep)  ! ! 
 
          time = time + dt
 
@@ -8865,7 +8865,7 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dg_advance_ht(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ht(kstep) ! Advance u^{n-1} --> u^n
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -8874,22 +8874,22 @@ c-----------------------------------------------------------------------
 
       if(tmstpp.eq.1) then      ! euler 
 
-         call dg_advance_ht_euler1(kstep)
+         call dg_advect_ht_euler1(kstep)
 
       else if(tmstpp.eq.2) then ! rk2
 
-         call dg_advance_ht_ssprk2(kstep)
+         call dg_advect_ht_ssprk2(kstep)
 
       else if(tmstpp.eq.3) then ! rk3
 
-         call dg_advance_ht_ssprk3(kstep)
+         call dg_advect_ht_ssprk3(kstep)
 
       endif
 
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dg_advance_ht_euler1(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ht_euler1(kstep) ! Advance u^{n-1} --> u^n
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -8909,7 +8909,7 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dg_advance_ht_ssprk2(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ht_ssprk2(kstep) ! Advance u^{n-1} --> u^n
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -8940,7 +8940,7 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine dg_advance_ht_ssprk3(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advect_ht_ssprk3(kstep) ! Advance u^{n-1} --> u^n
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -8972,6 +8972,7 @@ c     Stage 3
 c     write(6,*) 'Stage 3 '
       t3 = time + dt/2.
       call copy(tmtp, tep2, n)                     ! copy into scratch
+      call comp_dg_rhs_ht (rhst,t2) ! compute rhs 
       call comp_dg_rhs_ht (rhst,t3) ! compute rhs 
       do i=1,n       ! update solution 
           tep (i,1,1,1)=(tep(i,1,1,1)+tep2(i)*2.+tep1(i)*dt*2.)/3.
@@ -8980,7 +8981,7 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine comp_dg_rhs_ht(rhs,tm) ! find right hand side 
+      subroutine comp_dg_rhs_ht(rhs,tm) ! ! find right hand side 
 c
 c    rhs =  volume + surface
 c
@@ -8990,7 +8991,7 @@ c
       include 'DG'      ! dg_face is stored
       real     rhs(1) , tm
       real     rsf(lt), res(lt)
-c     real     rhd(lt)
+      real     rhd(lt)
       common /srcns/ uf(lf)
 
       n  = nx1*ny1*nz1*nelt
@@ -8998,300 +8999,25 @@ c     real     rhd(lt)
 c 
 c output 
       call rzero(rhs,n)
-c temporary 
+c Temp 
       call rzero(res,n)
       call rzero(rsf,n) 
-
-c Temp volume and surface, should be close to 
-c  diffusion operator 
-
-c     Auxiliary solve , boundary routine not complete yet 
-      call ht_aux_slv  (sht) ! sht: aux var. for heat 
-
-c     Volume 
-c     Sun Dec 13 01:13:10 CST 2015
-      call ht_vol_eval (rhs) ! evaluate components, for vol int. 
-      call ht_vol_res  (rhs) ! evaluate volume residue 
-
-c     Surface 
-      call ht_surf_res (rsf) ! evaluate surface residue 
-c     think about how to obtain the actual rhs from 
-c     volume rhs and surface rsf 
-c     call add2        (rhs,rsf,n) ! DONE 
 c 
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_aux_slv(tmq) ! 
-c    Solve for aux variable 
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      real     tmq(lt,1) 
-      real     vua(lt,ldim) 
-      real     uaf(lf,ldim) 
-
-      n  = nx1*ny1*nz1*nelt
-      nf = nx1*nz1*2*ndim*nelt
-
-c    Vol integral 
-      call ht_aux_vol (vua)  ! ! 
-
-c    Surf integral 
-      call ht_aux_srf ( uaf)  ! ! 
-
-c    Solve for aux 
-      call ht_aux_stp ( tmq, vua, uaf)  ! ! 
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_aux_vol(volq) ! 
-c    
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      parameter(le=lx1*ly1*lz1)
-      real     volq(lt,1)  ! second index for dimension 
-      real     mtp(le,lelt) 
-      integer  e 
-
-      n  = nx1*ny1*nz1*nelt
-      nf = nx1*nz1*2*ndim*nelt
-
-c    Vol integral 
-c    Temperature in tmtp field 
-      do e=1,nelt 
-        call col3 (mtp(1,e),tmtp(1,e),w3m1,le) ! multi mass matrix 
-      enddo 
-
-      if(if3d) then  ! Can I use this routine from the diffusion part ? 
-        call grad_t_u (volq(1,1),volq(1,2),volq(1,3),mtp) ! transpose of grad
-      else 
-        call grad_t_u2(volq(1,1),volq(1,2),mtp)
-      endif
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_aux_srf(srfq) ! 
-c    
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      real     srfq(lf,ldim) 
-      integer  e, f, i, k
-      real     ctrq(lf), difq(lf)
-
-      n  = nx1*ny1*nz1*nelt
-      nf = nx1*nz1*2*ndim*nelt
-      nfaces=2*ndim
-      nxz=nx1*nz1
-
-c    Surf integral 
-      call ht_aux_ctr(ctrq) !  ! central 
-c     call ht_aux_dif(difq) !  ! difference, can wait a bit 
-
-      k = 0
-      do e=1,nelt
-      do f=1,nfaces
-      do i=1,nxz
-         k=k+1
-         if(if3d) then
-            srfq(k,1) = ctrq(k)*unx(i,1,f,e)*area(i,1,f,e)
-            srfq(k,2) = ctrq(k)*uny(i,1,f,e)*area(i,1,f,e)
-            srfq(k,3) = ctrq(k)*unz(i,1,f,e)*area(i,1,f,e)
-         else ! 2D 
-            srfq(k,1) = ctrq(k)*unx(i,1,f,e)*area(i,1,f,e)
-            srfq(k,2) = ctrq(k)*uny(i,1,f,e)*area(i,1,f,e)
-         endif
-      enddo
-      enddo
-      enddo
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_aux_stp ( tmq, vua, uaf)  ! ! 
-c     
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      integer  i, f, e, k
-      real     tmq(lt,1)  ! surf flux, def on volume 
-      real     vua(lt,1)
-      real     uaf(lf,1)
-      real     tmp(lt)
-c
-      n=nx1*ny1*nz1*nelt
-      nxz=nx1*nz1
-      nfaces=2*ndim
-c
-      do id=1,ndim  ! 3, 2 
-        call face2full (tmp,uaf(1,id)) 
-        call sub2      (tmp,vua(1,id),n)  ! surf - vol 
-c    Multi. with mass matrix inverse 
-        call invbf     (tmq(1,id), tmp)   ! inv bm1 
-      enddo 
-c
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_aux_ctr(ctrq) !  ! central 
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      real     btf(lf), tpf (lf) 
-      real     ctrq(1)
-
-      n=nx1*ny1*nz1*nelt
-      nf=nx1*nz1*2*ndim*nelt !total number of points on faces
-
-      call full2face  (tpf, tmtp) 
-      call htbc_aux   (btf) ! boundary for heat 
-
-      call add2  (tpf,btf,nf)         ! first add bc , a- + a+(bc) 
-      call gs_op (dg_hndl,tpf,1,1,0)  ! 1 ==> +      , a- + a+(itr)
-      call cmult (tpf,0.5,nf)         ! times 1/2, (a- + a+)/2 
-
-      call copy  (ctrq,tpf,nf)        ! just a copy 
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine htbc_aux(btf) ! 3+2
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      common /nekcb/ cb
-      character cb*3
-      integer  i, f, e, k
-      real     btf(lf)
-      n   =nx1*ny1*nz1*nelt
-      nf  =nx1*nz1*2*ndim*nelt 
-      nxz =nx1*nz1
-      nfaces=2*ndim
-      k=0
-      do e=1,nelt
-      do f=1,nfaces
-         ieg=lglel(e)
-         cb =cbc(f,e,ifield)
-         if(cb.eq.'t  ' .or. cb.eq.'T  ' .or. 
-     $      cb.eq.'w  ' .or. cb.eq.'W  ' .or. 
-     $      cb.eq.'o  ' .or. cb.eq.'O  ') then
-            ia=0
-            call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
-            do iz=kz1,kz2
-            do iy=ky1,ky2
-            do ix=kx1,kx2
-               ia = ia + 1
-               k  = ia + (f-1)*nxz + (e-1)*nfaces*nxz
-               if(cb.eq.'t  '.or. cb .eq.'T  ') then  ! Thermal dirich
-                   call nekasgn(ix,iy,iz,e)
-c                  call userbc_f(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-c need a copy of userbc_f to write this routine, shouldn't be hard
-c though
-                   call userbc_t(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-
-                   btf(k) = 2.*btf(k) - tmtp(ix,iy,iz,e) 
-               else if(cb.eq.'W  ') then ! ! solid wall 
-                   call nekasgn(ix,iy,iz,e)
-                   call userbc_w(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-                   write(6,*) 'What happens at wall? '
-                   call exitt 
-               else if(cb.eq.'o  ' .or. cb.eq.'O  ') then ! 
-                   write(6,*) 'What happens at outflow? '
-                   call exitt 
-               endif
-            enddo 
-            enddo 
-            enddo 
-         endif
-      enddo 
-      enddo 
-
-      return
-      end
-c-----------------------------------------------------------------------
-c-----------------------------------------------------------------------
-c-----------------------------------------------------------------------
-      subroutine ht_vol_eval(rhs) ! ! 3+2? 
-c
-c
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      parameter(le=lx1*ly1*lz1)
-      integer  e
-      real     rhs(le,1), tm2(le,lelt)
-
-      n=nx1*ny1*nz1*nelt
-      ne=nx1*ny1*nz1
-      
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_surf_res(rsf) ! ! 3+2? 
-c
-c     Surface residue 
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      parameter(le=lx1*ly1*lz1)
-      integer  e
-      real     rhs(le,1), tm2(le,lelt)
-
-      n=nx1*ny1*nz1*nelt
-      ne=nx1*ny1*nz1
-      
-      if(if3d) then
-c       write(6,*) '3d not ther e' 
-      else  ! first use code that's already there, will it work? 
-      endif
-
-      return
-      end
-c-----------------------------------------------------------------------
-      subroutine ht_vol_res(rhs) ! ! 3+2? 
-c
-c  weak form: 1. times mass matrix 
-c             2. transpose of derivatives 
-c             3. times mass matrix inverse 
-c
-      include 'SIZE'
-      include 'TOTAL'
-      include 'DGUSE'
-      include 'DG'      ! dg_face is stored
-      parameter(le=lx1*ly1*lz1)
-      integer  e
-      real     rhs(le,1), tm2(le,lelt)
-
-      n=nx1*ny1*nz1*nelt
-      ne=nx1*ny1*nz1
-      
-      if(if3d) then
-c       write(6,*) '3d not ther e' 
-        call rzero(tm2,n)
-        call grad_bm1_t(tm2,fd,gd,hd)
-      else  ! first use code that's already there, will it work? 
-        call rzero(tm2,n)
-        call rzero(hd,n)
-        if(flg.ge.2) then 
-          call grad_bm1_t(tm2,fd,gd,hd) ! no de-aliasing now 
-        endif
-      endif
-
-      if(flg.ge.2) then 
-        call invbf (rhs,tm2) ! all elements 
-        call chsign(rhs,n) ! all elements 
+c     Volume
+      call vol_res (rhs,flg)
+c 
+c     Surface
+      call surf_res     ( uf,flg)
+      call add_face2full(res,uf)  ! to volumetric array
+      call invbf        (rsf,res) ! 3D 
+c 
+c     Adv done 
+      call add2 (rhs,rsf,n) 
+c 
+c     Diffusion operator 
+      if(ifdifu) then
+          call difu_dg(rhd, flg)  ! right hand side of diffusion 
+          call add2   (rhs,rhd,n) 
       endif
 c 
       return

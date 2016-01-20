@@ -17,13 +17,12 @@ c - | For pre_comp, the newest solutions
      $               , tmrz(lx1,ly1,lz1,lelt), tmpr(lx1,ly1,lz1,lelt) 
      $               , tmux(lx1,ly1,lz1,lelt), tmuy(lx1,ly1,lz1,lelt)
      $               , tmuz(lx1,ly1,lz1,lelt), tme (lx1,ly1,lz1,lelt)
-     $               , tmtp(lx1,ly1,lz1,lelt)
      $               , uij(lx1*ly1*lz1,6,lelt)
      $               , tij(lx1*ly1*lz1,6,lelt)
 c - | For diffusion operator 
       common /dif_dg/  shr(lt,ldim)  , shu(lt,ldim)  
      $               , shv(lt,ldim)  , shw(lt,ldim)  
-     $               , she(lt,ldim)  , sht(lt,ldim) 
+     $               , she(lt,ldim)  
      $               , udx(lx1*ly1*lz1,lelt), udy(lx1*ly1*lz1,lelt)
      $               , vdx(lx1*ly1*lz1,lelt), vdy(lx1*ly1*lz1,lelt)
      $               , wdx(lx1*ly1*lz1,lelt), wdy(lx1*ly1*lz1,lelt)
@@ -68,7 +67,7 @@ c - |  For Central flux in diffusion operator
      $               , fdd(lf), gdd(lf), hdd(lf)
      $               , duc(lf), dud(lf)
 c-----------------------------------------------------------------------
-c - |  Heat problem parameters
+c - |  Heat problem 
       common /dgheat/  rcp, kcd, prd
       real rcp, kcd, prd
 c-----------------------------------------------------------------------
