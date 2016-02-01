@@ -1,24 +1,20 @@
-%%  Heat equation, no preferred direction, central flux
-%  This code is for discontinuous Galerkin method
+%%  1D Poisson equation, Nodal DG, pp. 261-275 
+%  Discontinuous Galerkin method
 %  Explicit scheme, SSP-RK2
+%  
 
-%  Maybe do source term? 
-%  Mon Feb  1 11:12:28 CST 2016
+function [succ,infer] = poisson
 
-function succ = heat
-
-    global Ne Nx
-%   Ne = 20;           % Number of elem
-%   N = 4;            % Poly. order
-    % N = 4, 8 will blow up after round t = 0.27, def. t = 0.3
-    % N 256, NP 8, blow up be4 0.3
-%   Nx = N + 1;       % Numb of points in each elem.
+    global Ne Nx ifplt
     N = Nx - 1;       % Numb of points in each elem.
+
+    infer = 2e20; 
 
     [Kh,Mh,Ch,Dh,z,w] =  semhat(N);
     % Init Geom
-    a=-1.; b=1.;
-    dl = (b - a)/(Ne);
+%   a=-1.; b=1.;
+    a=0.; b=2.*pi; %
+    dl = (b - a)/(Ne); % Length of each elem 
     x = zeros(Nx,Ne);
     for ie = 1: Ne
         ae = a + (ie-1)*dl;
@@ -29,64 +25,44 @@ function succ = heat
 
     ifsrc = true; 
     qs = -2.*ones(size(x));
+    qs = -1.*sin(x); % Right hand side source term, analy. u = sin(x)  
+    uex = qs;  % Exact solution
 
-    % Init scalar
-    % u0 = 0.5 + sin(pi.*x);
-    u0 = 2. - x.^2; 
     ka = ones(Nx,1); % Scalar field 
 
-    t = 0.; dt = 1e-5;
-    CFL = ka(1)*dt/(x(2,1)-x(1,1))^2;  % 0.0335  seems to be working 
-    CFL = 0.30; dt = CFL*(x(2,1)-x(1,1))^2 /ka(1);  % Alright 0.3 is nice 
-    T = 1.e-0; Nt = round(T/dt); dt= T/Nt; 
-    ifplt = false;
-    ifplt = true;
-    disp(['Ne = ',num2str(Ne),', N = ',num2str(N), ...
-          ' ,dt=',num2str(dt),', CFL = ',num2str(CFL)]);
+%   ifplt = false;
+%   ifplt = true;
 
-    u  = u0;  %
+% Just, amazing. wordless 
+    g = zeros(Nx*Ne,1); A = zeros(Nx*Ne,Nx*Ne); 
+
+    for i =1:Nx*Ne
+      g(i) = 1.; 
+      gmat = reshape(g,Nx,Ne);
+      q = lh_pois(gmat,Mb,Db,ka);           % Obtain right hand side
+      A(:,i) = reshape(q,Nx*Ne,1);           
+      g(i) = 0.; 
+    end
+    [Va,Da] = eig(A); eps = 1.e-13; 
+    % Da = Da + eps.*sqrt(-1).*ones(size(Da)); % figure(2);plot(diag(Da),'ro'); 
+    % dlmwrite('eigA.dat',Da);
+    % [md,mid] = min(Da);
+
+    u = A \ reshape(qs,Nx*Ne,1); 
+    plx   = reshape(x,Nx*Ne,1); 
+    plu   = reshape(u,Nx*Ne,1); 
+    pluex = reshape(uex,Nx*Ne,1); 
     if(ifplt)
         figure(1);hold on;
-        for ie = 1:Ne
-             plot(x(:,ie),u0(:,ie),'b-');
-        end
+        plot(plx,pluex,'bx-',plx,plu  ,'r-');
         xlabel('-- x --'); ylabel('-- u --');
-        title(['solution at time t = ' num2str(t) ]);
-        drawnow
-        pause(0.01);
+        title(['solution']);
+        legend('Exact','Num.'); drawnow ; pause(0.2);
         hold off;
     end
+    infer = norm(plu-pluex,Inf); 
+    disp(['Inf norm error= ', num2str(infer)]); 
 
-    for i = 1:Nt
-        urh = lh_heat(u,Mb,Db,ka);           % Obtain right hand side
-        u1  = u + dt.*urh;             % First stage of rk 2
-        if(ifsrc) 
-          u1  = u1 + dt.*qs;           % Source term, cancels mass matrix
-        end
-        urh = lh_heat(u1,Mb,Db,ka);         % Obtain right hand side
-        if(ifsrc) 
-          u   = 0.5*(u + u1 + dt.*urh + dt.*qs);% Source term, cancels mass matrix
-        else
-          u   = 0.5*(u + u1 + dt.*urh);  % Second stage of rk 2
-        end
-
-        t = t + dt;
-        if(ifplt && mod(i,Nt/20)==0)
-            clf; figure(1);hold on;
-%            ylim([-0.1,1.1]);
-            xlim([-1. 1.]);
-            for ie = 1:Ne
-                plot(x(:,ie),u(:,ie),'b-');
-            end
-            xlabel('-- x --'); ylabel('-- u --');
-            title(['solution at time t = ' num2str(t) ]);
-            drawnow
-            pause(0.01);
-            hold off;
-            disp(['max(u) = ' num2str(max(max(u))) ...
-               ' , min(u) = ' num2str(min(min(u))) ' , istep = ' num2str(i)]);
-        end
-    end
     succ = true;
 end
 %%
@@ -105,19 +81,36 @@ function flx = ctr_flx(fm,fp) % weak form
 %    fctr(2,:) = fctr(2,:); %      right doen not change
     flx  = fctr;  % center flux runs
 end
-function urhs = lh_heat(u,M,D,a) % Nodal DG Ch. 7.1
-    sqa = sqrt(a);          % Mult. this field twice 
-    vq = eval_q(u,M,D,sqa); % volumetric array
-    urhs = eval_fu(vq,M,D,sqa);
+function flx = dif_flx(um,up) % weak form
+    difu = um - up;
+%    fctr(1,:) = - fctr(1,:);% mask, left times -1,
+%    fctr(2,:) = fctr(2,:); %      right doen not change
+%    flx  = fctr;  % center flux runs
+    flx = difu; 
 end
-function urhs = eval_fu(q,M,D,sa)
+function urhs = lh_pois(u,M,D,a) % Nodal DG Ch. 7.1
+% Pure central is very bad, modify q* in eval_fu 
+    sqa = sqrt(a);            % Mult. this field twice 
+    vq = eval_q(u,M,D,sqa);   % volumetric array
+    urhs = eval_fu(vq,u,M,D,sqa);
+    % Actually I think there is a minus sign 
+    urhs = -1.*urhs; 
+end
+function urhs = eval_fu(q,u,M,D,sa)
     global Ne Nx
+    tau = 1.; 
     urhs = zeros(Nx,Ne);
     f = diag(sa)*q;
+% So this is stabilized central flux 
     [fm,fp] = full2face(f);
     [fp] = bc_q(fp,fm); % Add bc to q
     ctr_f = ctr_flx(fm,fp); % Center for both 
-    full_f = face2full(ctr_f);
+
+    [um,up] = full2face(u);
+    [up] = bc_fu(up,um); % Add bc to q
+    dif_u = dif_flx(um,up); % Difference in u
+
+    full_f = face2full(ctr_f - tau.*dif_u);
     for ie = 1:Ne
         % weak form
         urhs(:,ie) = M\(full_f(:,ie) - D'*M*f(:,ie)); 

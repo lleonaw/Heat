@@ -1,10 +1,6 @@
 %%  Heat equation, no preferred direction, central flux
 %  This code is for discontinuous Galerkin method
 %  Explicit scheme, SSP-RK2
-
-%  Maybe do source term? 
-%  Mon Feb  1 11:12:28 CST 2016
-
 function succ = heat
 
     global Ne Nx
@@ -27,22 +23,16 @@ function succ = heat
     Mb = (dl/2.)*Mh; % dx /d kexi  %  M bar, does not change
     Db = (2./dl)*Dh; % d kexi/ dx
 
-    ifsrc = true; 
-    qs = -2.*ones(size(x));
-
     % Init scalar
     % u0 = 0.5 + sin(pi.*x);
     u0 = 2. - x.^2; 
     ka = ones(Nx,1); % Scalar field 
 
     t = 0.; dt = 1e-5;
-    CFL = ka(1)*dt/(x(2,1)-x(1,1))^2;  % 0.0335  seems to be working 
-    CFL = 0.30; dt = CFL*(x(2,1)-x(1,1))^2 /ka(1);  % Alright 0.3 is nice 
-    T = 1.e-0; Nt = round(T/dt); dt= T/Nt; 
+    T = 1.e-0; Nt = round(T/dt);
     ifplt = false;
     ifplt = true;
-    disp(['Ne = ',num2str(Ne),', N = ',num2str(N), ...
-          ' ,dt=',num2str(dt),', CFL = ',num2str(CFL)]);
+    disp(['Ne = ' num2str(Ne) ', N = ' num2str(N) ', dt=' num2str(dt) ]);
 
     u  = u0;  %
     if(ifplt)
@@ -60,18 +50,11 @@ function succ = heat
     for i = 1:Nt
         urh = lh_heat(u,Mb,Db,ka);           % Obtain right hand side
         u1  = u + dt.*urh;             % First stage of rk 2
-        if(ifsrc) 
-          u1  = u1 + dt.*qs;           % Source term, cancels mass matrix
-        end
         urh = lh_heat(u1,Mb,Db,ka);         % Obtain right hand side
-        if(ifsrc) 
-          u   = 0.5*(u + u1 + dt.*urh + dt.*qs);% Source term, cancels mass matrix
-        else
-          u   = 0.5*(u + u1 + dt.*urh);  % Second stage of rk 2
-        end
+        u   = 0.5*(u + u1 + dt.*urh);  % Second stage of rk 2
 
         t = t + dt;
-        if(ifplt && mod(i,Nt/20)==0)
+        if(ifplt && mod(i,Nt/25)==0)
             clf; figure(1);hold on;
 %            ylim([-0.1,1.1]);
             xlim([-1. 1.]);
@@ -188,20 +171,24 @@ end
 %   Neumann  : u+ = u- , q+ = - q-
 function [qp] = bc_q(qp,qm)
     global Ne 
-    % Dirichlet for u 
+    % Dirichlet
     qp(1,1) = qm(1,1);
-    qp(2,Ne) = qm(2,Ne); 
-    % Neumann for u 
+%    qp(2,Ne) = qm(2,Ne); 
+    % Neumann
 %    qp(1,1) = - qm(1,1);
-%    qp(2,Ne) = - qm(2,Ne);
+    qp(2,Ne) = - qm(2,Ne);
 end
 function [up] = bc_fu(up,um)
     global Ne
     % Dirichlet    
-    up(1,1) = 2.*0. - um(1,1);
-    up(2,Ne) = 2.*0. - um(2,Ne);
+    up(1,1) = 2.*1. - um(1,1);
+%    up(2,Ne) = 2.*1. - um(2,Ne);
     % Neumann
 %    up(1,1) =  um(1,1);
-%    up(2,Ne) = um(2,Ne);
+    up(2,Ne) = um(2,Ne);
 end
 %%
+function f = flx_u(u) % Not used in this routine! 
+% Heat 
+    f = u;
+end
