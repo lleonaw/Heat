@@ -9219,7 +9219,7 @@ c though
       return
       end
 c-----------------------------------------------------------------------
-c-----------------------------------------------------------------------
+c----- Bottom of Boundary 
 c-----------------------------------------------------------------------
       subroutine ht_vol_eval(rhs) ! ! 3+2? 
 c
@@ -9238,24 +9238,167 @@ c
       return
       end
 c-----------------------------------------------------------------------
-      subroutine ht_surf_res(rsf) ! ! 3+2? 
-c
-c     Surface residue 
+      subroutine ht_surf_res(flx) ! ! 3+2? 
+c --\
+c    - Surface residue. Central now? Pick the simplest one 
+c    - Can have multiple paths later, e.g. different fluxes  
+c --/
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
       include 'DG'      ! dg_face is stored
-      parameter(le=lx1*ly1*lz1)
-      integer  e
-      real     rhs(le,1), tm2(le,lelt)
+      real     flx(1)
 
       n=nx1*ny1*nz1*nelt
       ne=nx1*ny1*nz1
       
-      if(if3d) then
-c       write(6,*) '3d not ther e' 
-      else  ! first use code that's already there, will it work? 
+      call ht_flx_srf(flx) ! no de-al yet 
+
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Surface flx routines 
+c-----------------------------------------------------------------------
+      subroutine ht_flx_srf(flx) ! 3+2
+c     Lax-Friedrichs flux, only weak form now 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      integer  i, f, e, k
+      real     flx(1)      ! defined on surface 
+      real     ctrh(lf,3)  ! defined on surface, ndim components 
+
+      n=nx1*ny1*nz1*nelt
+      nxz=nx1*nz1
+      nfaces=2*ndim
+
+c    Surf integral 
+      call ht_flx_ctr(ctrh) !  ! central flux of h 
+      call ht_flx_dif(dift) !  ! difference in temp, eval tau in this 
+
+      k = 0
+      do e=1,nelt
+      do f=1,nfaces
+      do i=1,nxz
+         k=k+1
+         if(if3d) then
+            flx(k) =  ctrh(k,1)*unx(i,1,f,e)
+     $              + ctrh(k,2)*uny(i,1,f,e)
+     $              + ctrh(k,3)*unz(i,1,f,e)
+     $              - tau(k)*udf(k)/2. 
+            flx(k) = flx(k)*area(i,1,f,e)
+         else ! 2D 
+            flx(k) =  ctrh(k,1)*unx(i,1,f,e)
+     $              + ctrh(k,2)*uny(i,1,f,e)
+     $              - tau(k)*udf(k)/2. 
+            flx(k) = flx(k)*area(i,1,f,e)
+         endif
+      enddo
+      enddo
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine ht_flx_ctr(ctrh) !  ! central 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      real     btf(lf), tpf (lf) 
+      real     ctrq(lf,1)
+
+      n=nx1*ny1*nz1*nelt
+      nf=nx1*nz1*2*ndim*nelt !total number of points on faces
+
+      call full2face  (fdf, fd) 
+      call full2face  (gdf, gd) 
+      if(if3d)   call full2face  (hdf, hd) 
+
+      call htbc_tmp   (btf,btg,bth)   ! ! boundary on aux
+
+      call add2  (fcd,fdf,nf)         ! first add bc , a- + a+(bc) 
+      call add2  (fcd,btf,nf)         ! first add bc , a- + a+(bc) 
+      call gs_op (dg_hndl,fcd,1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult (fcd,0.5,nf)         ! times 1/2, (a- + a+)/2 
+
+      call add2  (gcd,gdf,nf)         ! first add bc , a- + a+(bc) 
+      call add2  (gcd,btg,nf)         ! first add bc , a- + a+(bc) 
+      call gs_op (dg_hndl,gcd,1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult (gcd,0.5,nf)         ! times 1/2, (a- + a+)/2 
+
+      if(if3d) then 
+        call add2  (hcd,hdf,nf)         ! first add bc , a- + a+(bc) 
+        call add2  (hcd,bth,nf)         ! first add bc , a- + a+(bc) 
+        call gs_op (dg_hndl,hcd,1,1,0)  ! 1 ==> +      , a- + a+(itr)
+        call cmult (hcd,0.5,nf)         ! times 1/2, (a- + a+)/2 
       endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine htbc_tmp(bf1,bg1,bh1) ! 3 + 2
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      common /nekcb/ cb
+      character cb*3
+      integer  flg, i, f, e, k
+      real     bf1(lf), bg1(1), bh1(1) 
+      n  = nx1*ny1*nz1*nelt
+      nf = nx1*nz1*2*ndim*nelt 
+      nxz= nx1*nz1
+      nfaces=2*ndim
+      call rzero(bf1,nf)
+      call rzero(bg1,nf)
+      call rzero(bh1,nf)
+      k=0
+      do e=1,nelt
+      do f=1,nfaces
+         ieg=lglel(e)
+         cb =cbc(f,e,ifield)
+         write(6,*) 'bc for aux, in temperature eq' 
+c        if(cb.eq.'f  ' .or. cb.eq.'F  ' .or. 
+c    $      cb.eq.'o  ' .or. cb.eq.'SYM' .or.  
+c    $      cb.eq.'O  ' .or. 
+c    $      cb.eq.'w  ' .or. cb.eq.'W  ' ) then
+c           ia=0
+c           call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
+c           do iz=kz1,kz2
+c           do iy=ky1,ky2
+c           do ix=kx1,kx2
+c              ia = ia + 1
+c              k  = ia + (f-1)*nxz + (e-1)*nfaces*nxz
+
+c              if(cb.eq.'f  ') then  ! qh+ = qh- 
+
+c                call nekasgn(ix,iy,iz,e)
+c                call userbc_f(ix,iy,iz,f,e,ieg) 
+
+c                bf1(k) = fdf(k) 
+c                bg1(k) = gdf(k)  ! BC for F_v
+c                if(if3d) bh1(k) = hdf(k) 
+c              else if(cb.eq.'o  ') then
+c                  call nekasgn(ix,iy,iz,e)
+c                  call userbc_o(ix,iy,iz,f,e,ieg)
+c              else if(cb.eq.'SYM') then ! slip wall 
+c                  call nekasgn(ix,iy,iz,e)
+c                  call userbc_sym(ix,iy,iz,f,e,ieg)
+c              else if(cb.eq.'W  '.or.cb.eq.'w  ') then ! slip wall 
+c if no boundary conditions on \nabla u \cdot n 
+c set bf1 = fdf 
+c                bf1(k) = fdf(k) 
+c                bg1(k) = gdf(k)  ! BC for F_v
+c                if(if3d) bh1(k) = hdf(k) 
+c              endif
+c           enddo 
+c           enddo 
+c           enddo 
+c        endif
+      enddo 
+      enddo 
 
       return
       end
@@ -9291,7 +9434,7 @@ c       write(6,*) '3d not ther e'
 
       if(flg.ge.2) then 
         call invbf (rhs,tm2) ! all elements 
-        call chsign(rhs,n) ! all elements 
+        call chsign(rhs,n)   ! all elements 
       endif
 c 
       return

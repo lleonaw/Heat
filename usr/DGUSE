@@ -62,6 +62,7 @@ c - |  For Lax-Friedrichs flux
       real lm
 c-----------------------------------------------------------------------
 c - |  For Central flux in diffusion operator
+c   \  Can use it for heat problem ? Gonna try 
       common /ctscr/   fd (lt), gd (lt), hd (lt)
      $               , fdf(lf), gdf(lf), hdf(lf)
      $               , fcd(lf), gcd(lf), hcd(lf)

@@ -193,5 +193,24 @@
       subroutine grad_dbm1_t_col2(u,fx1,fx2,fy1,fy2,fz1,fz2) ! ! 
       subroutine grad_dbm1_t(u,fx,fy,fz) ! ! 
       subroutine grad_bm1_t(u,fx,fy,fz) !  3+2
+c     heat 
       subroutine dg_heat
-      subroutine dg_advect_execute_ht   ! 
+      subroutine dg_advance_execute_ht   ! !
+      subroutine setlogi_ht ! 2+3
+      subroutine setallic_ht ! 2+3
+      subroutine setic_ht ! 2+3
+      subroutine ht_cfl(cfl,nu,dt)  ! ! compute diffusion cfl 
+      subroutine dg_advance_ht(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advance_ht_euler1(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advance_ht_ssprk2(kstep) ! Advance u^{n-1} --> u^n
+      subroutine dg_advance_ht_ssprk3(kstep) ! Advance u^{n-1} --> u^n
+      subroutine comp_dg_rhs_ht(rhs,tm) ! find right hand side 
+      subroutine ht_aux_slv(tmq) ! 
+      subroutine ht_aux_vol(volq) ! 
+      subroutine ht_aux_srf(srfq) ! 
+      subroutine ht_aux_stp ( tmq, vua, uaf)  ! ! 
+      subroutine ht_aux_ctr(ctrq) !  ! central 
+      subroutine htbc_aux(btf) ! 3+2
+      subroutine ht_vol_eval(rhs) ! ! 3+2? 
+      subroutine ht_surf_res(rsf) ! ! 3+2? 
+      subroutine ht_vol_res(rhs) ! ! 3+2? 
