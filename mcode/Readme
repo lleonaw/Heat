@@ -1,1 +1,13 @@
-MATLAB code for 1D case. 
+
+Wed Sep 16 23:17:37 CDT 2015
+Will blow up. Debug flux (prbbly).
+
+Thu Sep 17 12:34:55 CDT 2015
+Not debugged. Need to continue. Debugging using central
+flux. 
+
+Mon Sep 28 20:09:12 CDT 2015
+Code from laptop, dg and spectral code working, but 
+extended code unfinished( barely started). 
+
+
