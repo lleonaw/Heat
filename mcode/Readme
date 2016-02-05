@@ -10,4 +10,7 @@ Mon Sep 28 20:09:12 CDT 2015
 Code from laptop, dg and spectral code working, but 
 extended code unfinished( barely started). 
 
-
+Fri Feb  5 10:20:21 CST 2016
+Copied inv6_new from 4isen/mgrind/ 
+Do 2D NS from it. 
+Get diffusion to work first 

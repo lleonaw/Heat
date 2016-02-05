@@ -2,36 +2,34 @@
 %  Discontinuous Galerkin method
 %  Explicit scheme, SSP-RK2
 %  
+%  Use Nek's procedure, follow hxdg routine in hmholtz.f
+%  
+function [succ,infer] = poisson(mth) 
 
-function [succ,infer] = poisson
-
-    global Ne Nx ifplt
+    global Ne Nx ifplt 
     N = Nx - 1;       % Numb of points in each elem.
-
     infer = 2e20; 
 
     [Kh,Mh,Ch,Dh,z,w] =  semhat(N);
     % Init Geom
-%   a=-1.; b=1.;
-    a=0.; b=2.*pi; %
+    a=0.; b=2.*pi; 
     dl = (b - a)/(Ne); % Length of each elem 
     x = zeros(Nx,Ne);
     for ie = 1: Ne
-        ae = a + (ie-1)*dl;
-        x(:,ie) = ae+0.5*dl*(z+1.);
+       ae = a + (ie-1)*dl;
+       x(:,ie) = ae+0.5*dl*(z+1.);
     end
     Mb = (dl/2.)*Mh; % dx /d kexi  %  M bar, does not change
     Db = (2./dl)*Dh; % d kexi/ dx
+    Ib = speye(Ne); 
 
+    disp(['Method = ',num2str(mth), ...
+          ', Ne = ',num2str(Ne),' , N = ', num2str(N)]); 
     ifsrc = true; 
     qs = -2.*ones(size(x));
-    qs = -1.*sin(x); % Right hand side source term, analy. u = sin(x)  
-    uex = qs;  % Exact solution
-
-    ka = ones(Nx,1); % Scalar field 
-
-%   ifplt = false;
-%   ifplt = true;
+    qs =  1.*sin(x);      % Right hand side source term, analy. u = sin(x)  
+    uex = qs;             % Exact solution
+    ka = ones(Nx,1);      % Scalar field 
 
 % Just, amazing. wordless 
     g = zeros(Nx*Ne,1); A = zeros(Nx*Ne,Nx*Ne); 
@@ -39,20 +37,33 @@ function [succ,infer] = poisson
     for i =1:Nx*Ne
       g(i) = 1.; 
       gmat = reshape(g,Nx,Ne);
-      q = lh_pois(gmat,Mb,Db,ka);           % Obtain right hand side
-      A(:,i) = reshape(q,Nx*Ne,1);           
+      q = lh_pois(gmat,Mb,Db,ka,mth);           % Obtain right hand side
+      A(:,i) = reshape(q,Nx*Ne,1);
       g(i) = 0.; 
     end
-    [Va,Da] = eig(A); eps = 1.e-13; 
-    % Da = Da + eps.*sqrt(-1).*ones(size(Da)); % figure(2);plot(diag(Da),'ro'); 
+    dlmwrite('A.dat',A); 
+    dlmwrite('M.dat',full(kron(Ib,Mb))); 
+%   A = inv(kron(Ib,Mb)) * A; 
+%   dlmwrite('A2.dat',A); 
+%    dlmwrite(sprintf('A_Nx%d_ne%d.dat',Nx,Ne),A ); 
+%    dlmwrite(sprintf('M_Nx%d_ne%d.dat',Nx,Ne),Mb); 
+    % [Va,Da] = eig(A); eps = 1.e-13; 
+    % Da = Da + eps.*sqrt(-1).*ones(size(Da)); figure(2);plot(diag(Da),'ro'); 
     % dlmwrite('eigA.dat',Da);
     % [md,mid] = min(Da);
 
-    u = A \ reshape(qs,Nx*Ne,1); 
+    if(mth==1) 
+      u = A \ reshape(qs,Nx*Ne,1); 
+    elseif(mth==2)                   % Hack - essentially the tmask thing 
+      qs1 = reshape(Mb*qs,Nx*Ne,1);
+      u = zeros(Nx*Ne,1); 
+      u(2:end-1) = A(2:end-1,2:end-1)\qs1(2:end-1); 
+    end 
     plx   = reshape(x,Nx*Ne,1); 
     plu   = reshape(u,Nx*Ne,1); 
     pluex = reshape(uex,Nx*Ne,1); 
     if(ifplt)
+        %close; 
         figure(1);hold on;
         plot(plx,pluex,'bx-',plx,plu  ,'r-');
         xlabel('-- x --'); ylabel('-- u --');
@@ -62,18 +73,17 @@ function [succ,infer] = poisson
     end
     infer = norm(plu-pluex,Inf); 
     disp(['Inf norm error= ', num2str(infer)]); 
-
     succ = true;
 end
-%%
-function flx = lax_frd(fm,fp,um,up,lmd) % weak form
+%------------------------------------------------------
+function flx = ctr_flx_0(fm,fp) % weak form
     fctr = (fm + fp)/2.;
-    difu = um - up;
-    fctr(1,:) = - fctr(1,:);% mask, left times -1,
+%    difu = um - up;
+%    fctr(1,:) = fctr(1,:);% mask, left times -1,
 %    fctr(2,:) = fctr(2,:); %      right doen not change
-    flx  = fctr + (lmd.*difu)/2.; % LF does not run
-%    flx  = fctr;  % center flux runs
+    flx  = fctr;  % center flux runs
 end
+%
 function flx = ctr_flx(fm,fp) % weak form
     fctr = (fm + fp)/2.;
 %    difu = um - up;
@@ -82,20 +92,49 @@ function flx = ctr_flx(fm,fp) % weak form
     flx  = fctr;  % center flux runs
 end
 function flx = dif_flx(um,up) % weak form
-    difu = um - up;
-%    fctr(1,:) = - fctr(1,:);% mask, left times -1,
-%    fctr(2,:) = fctr(2,:); %      right doen not change
-%    flx  = fctr;  % center flux runs
-    flx = difu; 
+    flx = um - up;
 end
-function urhs = lh_pois(u,M,D,a) % Nodal DG Ch. 7.1
+%------------------------------------------------------
+function urhs = lh_pois(u,M,D,a,method) % Nodal DG Ch. 7.1
 % Pure central is very bad, modify q* in eval_fu 
+  if(method==1) 
     sqa = sqrt(a);            % Mult. this field twice 
     vq = eval_q(u,M,D,sqa);   % volumetric array
     urhs = eval_fu(vq,u,M,D,sqa);
-    % Actually I think there is a minus sign 
-    urhs = -1.*urhs; 
+    urhs = -1.*urhs;          % minus sign  
+  elseif(method==2) 
+    h1 = 1.; h2 = 0.;  % h1 equals a 
+    eta  = set_eta(M); 
+    urhs = hxdg_1(h1,h2,eta,M,D,u); 
+  end 
 end
+% -- For the one setup 
+function eta = set_eta(M) 
+    global Ne Nx 
+    [Mm Mp] = full2face_p(repmat(diag(M),1,Ne));
+    % Periodic boundary? 
+    eta = ctr_flx_0(1./Mm,1./Mp); 
+end 
+function [dum,dup] = nhat_mul(dum,dup)
+    dum(1,:) = -1.*dum(1,:); 
+    dup(2,:) = -1.*dup(2,:); 
+end 
+% --  
+function au = hxdg_1(h1,h2,eta,M,D,u) 
+    global Ne Nx 
+    au = h2.*M*u;
+    du = M*D*u,                % Need mass matrix? 
+    [ufm,ufp] = full2face_p(u);
+    [dum,dup] = full2face_p(du);
+    [dum,dup] = nhat_mul(dum,dup);
+    uf  = dif_flx(ufm,ufp); 
+    duf = dif_flx(dum,dup); 
+    du = h1.*du - 0.5.*face2full(uf); 
+    au = au - 0.5.*face2full(duf) + face2full(eta.*uf); 
+    au = au + D'*du;
+    uf, duf, au 
+end 
+% -- For the Two-layer setup 
 function urhs = eval_fu(q,u,M,D,sa)
     global Ne Nx
     tau = 1.; 
