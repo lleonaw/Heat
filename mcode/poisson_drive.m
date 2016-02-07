@@ -2,7 +2,7 @@
 
 %clear all; format long;
 
-close all; 
+%close all; 
 global Ne Nx ifplt
 ifplt = true; 
 ifplt = false; 
@@ -14,15 +14,15 @@ mth = 2; % Fidkowski formulation
 N = 4;            % Poly. order
 Nx = N + 1;       % Numb of points in each elem.
 
-Nn  = 1; 
+Nn  = 39; 
 Nen = 1; ere = zeros(Nen,Nn); 
 pln = zeros(Nen,Nn);
 
 for j=1:Nn
-%    N = j; Nx = N + 1;
-   N = 2; Nx = N + 1;
+    N = j+1; Nx = N + 1;
+%   N = 2; Nx = N + 1;
    for i=1:Nen
-      Ne = i*2;
+      Ne = i*4;
       [succ,infer] = poisson(mth); 
       if(succ)
         ere(i,j) = infer; 

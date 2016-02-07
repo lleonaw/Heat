@@ -12,7 +12,9 @@ function [succ,infer] = poisson(mth)
 
     [Kh,Mh,Ch,Dh,z,w] =  semhat(N);
     % Init Geom
-    a=0.; b=2.*pi; 
+%     a=0.; b=2.*pi; 
+    % Alternate geometry 
+    a = -1.; b = 1.; 
     dl = (b - a)/(Ne); % Length of each elem 
     x = zeros(Nx,Ne);
     for ie = 1: Ne
@@ -27,9 +29,11 @@ function [succ,infer] = poisson(mth)
           ', Ne = ',num2str(Ne),' , N = ', num2str(N)]); 
     ifsrc = true; 
     qs = -2.*ones(size(x));
-    qs =  1.*sin(x);      % Right hand side source term, analy. u = sin(x)  
+%     qs =  1.*sin(x);      % Right hand side source term, analy. u = sin(x)  
+    qs = 1.*cos(pi.*x/2.); 
     uex = qs;             % Exact solution
     ka = ones(Nx,1);      % Scalar field 
+    ka = 4.*ka./(pi^2); 
 
 % Just, amazing. wordless 
     g = zeros(Nx*Ne,1); A = zeros(Nx*Ne,Nx*Ne); 
@@ -104,6 +108,7 @@ function urhs = lh_pois(u,M,D,a,method) % Nodal DG Ch. 7.1
     urhs = -1.*urhs;          % minus sign  
   elseif(method==2) 
     h1 = 1.; h2 = 0.;  % h1 equals a 
+    h1 = a(1); % 4/ pi^2 
     eta  = set_eta(M); 
     urhs = hxdg_1(h1,h2,eta,M,D,u); 
   end 
@@ -121,9 +126,8 @@ function [dum,dup] = nhat_mul(dum,dup)
 end 
 % --  
 function au = hxdg_1(h1,h2,eta,M,D,u) 
-    global Ne Nx 
     au = h2.*M*u;
-    du = M*D*u,                % Need mass matrix? 
+    du = M*D*u;                % Need mass matrix? 
     [ufm,ufp] = full2face_p(u);
     [dum,dup] = full2face_p(du);
     [dum,dup] = nhat_mul(dum,dup);
@@ -132,7 +136,7 @@ function au = hxdg_1(h1,h2,eta,M,D,u)
     du = h1.*du - 0.5.*face2full(uf); 
     au = au - 0.5.*face2full(duf) + face2full(eta.*uf); 
     au = au + D'*du;
-    uf, duf, au 
+    %uf, duf, au 
 end 
 % -- For the Two-layer setup 
 function urhs = eval_fu(q,u,M,D,sa)
@@ -201,6 +205,7 @@ function [vm,vp] = full2face_p(v) % Assumes periodic boundary conditions
     vp = zeros(2,Ne);
     vm(1,:) = v(1,:);
     vm(2,:) = v(Nx,:);
+    if(Ne>1)
     for ie=1:Ne
         if(ie == 1)
             vp(1,ie) = v(Nx,Ne);
@@ -212,6 +217,10 @@ function [vm,vp] = full2face_p(v) % Assumes periodic boundary conditions
             vp(1,ie) = v(Nx,ie-1);
             vp(2,ie) = v(1,ie+1);% Periodic
         end
+    end
+    elseif(Ne==1)
+        vp(1,1) = v(Nx,1);
+        vp(2,1) = v(1,1);
     end
 end
 %%
