@@ -4,8 +4,8 @@
 
 %close all; 
 global Ne Nx ifplt
-ifplt = true; 
 ifplt = false; 
+ifplt = true; 
 
 mth = 1; % Penalized central flux
 mth = 2; % Fidkowski formulation
@@ -14,15 +14,15 @@ mth = 2; % Fidkowski formulation
 N = 4;            % Poly. order
 Nx = N + 1;       % Numb of points in each elem.
 
-Nn  = 39; 
+Nn  = 1; 
 Nen = 1; ere = zeros(Nen,Nn); 
 pln = zeros(Nen,Nn);
 
 for j=1:Nn
-    N = j+1; Nx = N + 1;
+    N = j; Nx = N + 1;
 %   N = 2; Nx = N + 1;
    for i=1:Nen
-      Ne = i*4;
+      Ne = i*2;
       [succ,infer] = poisson(mth); 
       if(succ)
         ere(i,j) = infer; 

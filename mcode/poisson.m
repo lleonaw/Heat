@@ -33,12 +33,12 @@ function [succ,infer] = poisson(mth)
     qs = 1.*cos(pi.*x/2.); 
     uex = qs;             % Exact solution
     ka = ones(Nx,1);      % Scalar field 
-    ka = 4.*ka./(pi^2); 
+    ka = ((pi^2)/4.).*ka; % For cos(pi x/ 2) case, 2nd deriv. 
 
 % Just, amazing. wordless 
     g = zeros(Nx*Ne,1); A = zeros(Nx*Ne,Nx*Ne); 
 
-    for i =1:Nx*Ne
+    for i =1:1 % Nx*Ne
       g(i) = 1.; 
       gmat = reshape(g,Nx,Ne);
       q = lh_pois(gmat,Mb,Db,ka,mth);           % Obtain right hand side
@@ -100,15 +100,15 @@ function flx = dif_flx(um,up) % weak form
 end
 %------------------------------------------------------
 function urhs = lh_pois(u,M,D,a,method) % Nodal DG Ch. 7.1
-% Pure central is very bad, modify q* in eval_fu 
+% Pure central is very bad, modify q* in eval_fu - done
   if(method==1) 
     sqa = sqrt(a);            % Mult. this field twice 
     vq = eval_q(u,M,D,sqa);   % volumetric array
     urhs = eval_fu(vq,u,M,D,sqa);
     urhs = -1.*urhs;          % minus sign  
   elseif(method==2) 
-    h1 = 1.; h2 = 0.;  % h1 equals a 
-    h1 = a(1); % 4/ pi^2 
+    h1 = 1.; h2 = 0.;  % h1 equals 1/ ka 
+    h1 = 1./a(1);      % 4/ pi^2 
     eta  = set_eta(M); 
     urhs = hxdg_1(h1,h2,eta,M,D,u); 
   end 
@@ -122,20 +122,23 @@ function eta = set_eta(M)
 end 
 function [dum,dup] = nhat_mul(dum,dup)
     dum(1,:) = -1.*dum(1,:); 
-    dup(2,:) = -1.*dup(2,:); 
+%    dup(2,:) = -1.*dup(2,:); 
+    dup(1,:) = -1.*dup(1,:); 
 end 
 % --  
 function au = hxdg_1(h1,h2,eta,M,D,u) 
+    global Ne Nx
     au = h2.*M*u;
-    du = M*D*u;                % Need mass matrix? 
-    [ufm,ufp] = full2face_p(u);
-    [dum,dup] = full2face_p(du);
-    [dum,dup] = nhat_mul(dum,dup);
-    uf  = dif_flx(ufm,ufp); 
-    duf = dif_flx(dum,dup); 
-    du = h1.*du - 0.5.*face2full(uf); 
-    au = au - 0.5.*face2full(duf) + face2full(eta.*uf); 
-    au = au + D'*du;
+    du = M*D*u,                % Need mass matrix? 
+%     du = D*u;                % Need mass matrix? 
+    [ufm,ufp] = full2face_p(u)
+    [dum,dup] = full2face_p(du)
+    [dum,dup] = nhat_mul(dum,dup),
+    uf  = dif_flx(ufm,ufp) 
+    duf = dif_flx(dum,dup) 
+    du = h1.*du - 0.5.*face2full(uf) 
+    au = au - 0.5.*face2full(duf) + face2full(eta.*uf) 
+    au = au + D'*du
     %uf, duf, au 
 end 
 % -- For the Two-layer setup 
