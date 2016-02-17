@@ -37,7 +37,7 @@ c - | Boundary values arrays
      $               , bux(lf), buy(lf), buz(lf), bpr(lf)
      $               , ben(lf)
 c - | Temporary boundary values
-      common /bctmp/   rho, rux, ruy, ruz, enr, pp
+      common /bctmp/   rho, rux, ruy, ruz, enr, pp, tem, dtn 
 c-----------------------------------------------------------------------
 c - |  For Roe flux 
 c   \-------------------------------------------------------------------

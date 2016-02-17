@@ -24,14 +24,17 @@ c       . IP  to be coded -  Wed Nov  4 18:37:44 CST 2015
 c           IP coded in shear case, did not do well      
 c     - Heat problem, 2D  -  Thu Dec 10 11:50:20 CST 2015
 c       . Need to code it 
+c     - Redo bc, v and f  -  Tue Feb 16 13:06:35 CST 2016
+c       . Make v the previous f for flow dirichlet 
+c       . Use f as the flux condition for temp dirichlet 
 c     . Filter. !
 c     . Mask of boundary. !
 c     . Roe flux. !
 c-----------------------------------------------------------------------
       subroutine dg_flow
-c     /----------------------------------\
-c-----| dg method for fluid flow problem |-----
-c     \----------------------------------/
+c      /----------------------------------\
+c-----|  dg method for fluid flow problem  |-----
+c      \----------------------------------/
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -571,7 +574,7 @@ c-----------------------------------------------------------------------
           do j=1,ny1
           do i=1,nx1
               call nekasgn(i,j,k,ie)
-              call useric_dg(i,j,k,ie) ! get rho, enr, rux,.. ruz
+              call useric_fl(i,j,k,ie) ! get rho, enr, rux,.. ruz
               rh(i,j,k,ie) = rho 
               En(i,j,k,ie) = enr 
               rvx(i,j,k,ie)= rux
@@ -1668,7 +1671,7 @@ c
       if(if3d) call rzero(btaz,nf)  ! beta 
       if(ifldg) call cmp_beta (btax,btay,btaz)  ! beta, page 267, H&W
 
-      call aux_ctr_u(ua,flg) !  duc , flg for bc 
+      call aux_ctr_u(ua,flg) !!  duc , flg for bc 
       call aux_dif_u(flg)    !!  dud 
 
       k = 0
@@ -8583,28 +8586,20 @@ c---- End de-aliasing
 c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
       subroutine dg_heat
-c     /----------------------------\
-c-----| dg method for heat problem |-----
-c     \----------------------------/
+c      /----------------------------\
+c-----|  dg method for heat problem  |-----
+c      \----------------------------/
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
 
       rcp = 1.000  ! air: specific heat 1.005 at 25 C, density 1.1~1.2 
       kcd = 0.026  ! air: thermal conductivity 
-      prd = 0.711  ! air 
-
-c     miu = param(2) 
-c     prt = 2.0e20  ! large prandtl number => neglib. thermal 
-                    ! or just comment out lines in vis_flx 
-c     gama = 1.4
+      prd = 0.711  ! air: prandtl number? can't remember now  
 
       call dg_advect_setup
 
-c     call dg_advect_execute
-      if(ifhedg) then 
-        call dg_advance_execute_ht 
-      endif 
+      call dg_advance_execute_ht 
 
       return
       end
@@ -8681,45 +8676,19 @@ c-----------------------------------------------------------------------
 c     htflx  = 2      ! 
       htflx  = 1      ! 1 - Central, 2 - 
 c     
-      ifstr = .true.  ! strong form 
-      ifstr = .false. ! weak  form 
-
-c     de-aliase, currently only the weak form has de-aliasing option
-      ifdeal = .true. 
-      ifdeal = .false. 
-
-c     debugging, print out function call history 
-      ifdbg = .true.   ! for debugging, write out routine stack
-      ifdbg = .false.  ! for debugging, write out routine stack
-
 c     for outpost 
       ifvo = .true.
       ifpo = .true.
       ifto = .true.
 
       if(nid.eq.0) then 
-      write(6,*) 'o------------------------------------------------o'
-      write(6,*) '| Heat problem                    '
-      write(6,*) 'o------------------------------------------------o'
-      write(6,*) '| Time-stepper order is           ', tmstpp
-      write(6,*) 'o------------------------------------------------o'
-      write(6,*) '| Flux type is ( 1 - Ctr,       ) ', htflx
-      write(6,*) 'o------------------------------------------------o'
-      if(ifstr) then 
-      write(6,*) '| Strong form                     '
-      write(6,*) 'o------------------------------------------------o'
-      else
-      write(6,*) '| Weak form                       '
-      write(6,*) 'o------------------------------------------------o'
-      if(ifdeal) then 
-        write(6,*) '| De-aliase volume & surface term '
         write(6,*) 'o------------------------------------------------o'
-      else
-        write(6,*) '| Not de-aliased                  '
+        write(6,*) '| Heat problem                    '
         write(6,*) 'o------------------------------------------------o'
-      endif
-      endif
-      endif
+        write(6,*) '| Time-stepper order is           ', tmstpp
+        write(6,*) 'o------------------------------------------------o'
+        write(6,*) '| Flux type is ( 1 - Ctr,       ) ', htflx
+        write(6,*) 'o------------------------------------------------o'
       endif
 
       return
@@ -8739,12 +8708,8 @@ c     this if is working. for ifdg flag turned on
           ! copy into my data fields, time is set in restarting
           if(if3d) then 
               if(nid.eq.0) write(6,*) 'Done :: DG Restarting 3d...'
-c             call copy_all( vx, vy, vz, pr,En
-c    $                    ,  vx, vy, vz, pr, t,n)  ! pres -> density
               call copy(tep,t,n) 
           else
-c             call copy_all2(rvx,rvy, rh,En
-c    $                      , vx, vy, pr, t,n)  ! pres -> density
               call copy(tep,t,n) 
               if(nid.eq.0) write(6,*) 'in restart '
               call printmax_1(tep) 
@@ -8773,8 +8738,8 @@ c-----------------------------------------------------------------------
           do j=1,ny1
           do i=1,nx1
               call nekasgn(i,j,k,ie)
-              call useric_dg(i,j,k,ie) ! get rho, enr, rux,.. ruz
-              tep(i,j,k,ie)= tmp 
+              call useric_ht(i,j,k,ie) ! get rho, enr, rux,.. ruz
+              tep(i,j,k,ie)= tem 
           enddo 
           enddo 
           enddo 
@@ -9011,13 +8976,14 @@ c     Auxiliary solve , boundary routine not complete yet
 c     Volume 
 c     Sun Dec 13 01:13:10 CST 2015
       call ht_vol_eval (rhs) ! evaluate components, for vol int. 
-      call ht_vol_res  (rhs) ! evaluate volume residue 
+      call ht_vol_res  (rhs) !! evaluate volume residue 
 
 c     Surface 
-      call ht_surf_res (rsf) ! evaluate surface residue 
 c     think about how to obtain the actual rhs from 
 c     volume rhs and surface rsf 
-c     call add2        (rhs,rsf,n) ! DONE 
+
+      call ht_surf_res (rsf) !! evaluate surface residue 
+      call add2        (rhs,rsf,n) !! DONE 
 c 
       return
       end
@@ -9064,7 +9030,7 @@ c
 c    Vol integral 
 c    Temperature in tmtp field 
       do e=1,nelt 
-        call col3 (mtp(1,e),tmtp(1,e),w3m1,le) ! multi mass matrix 
+        call col3 (mtp(1,e),tmtp(1,1,1,e),w3m1,le) ! multi mass matrix 
       enddo 
 
       if(if3d) then  ! Can I use this routine from the diffusion part ? 
@@ -9116,7 +9082,6 @@ c     call ht_aux_dif(difq) !  ! difference, can wait a bit
       end
 c-----------------------------------------------------------------------
       subroutine ht_aux_stp ( tmq, vua, uaf)  ! ! 
-c     
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -9153,6 +9118,7 @@ c-----------------------------------------------------------------------
       nf=nx1*nz1*2*ndim*nelt !total number of points on faces
 
       call full2face  (tpf, tmtp) 
+      call rzero      (btf,nf) 
       call htbc_aux   (btf) ! boundary for heat 
 
       call add2  (tpf,btf,nf)         ! first add bc , a- + a+(bc) 
@@ -9182,9 +9148,9 @@ c-----------------------------------------------------------------------
       do f=1,nfaces
          ieg=lglel(e)
          cb =cbc(f,e,ifield)
-         if(cb.eq.'t  ' .or. cb.eq.'T  ' .or. 
-     $      cb.eq.'w  ' .or. cb.eq.'W  ' .or. 
-     $      cb.eq.'o  ' .or. cb.eq.'O  ') then
+         if(cb.eq.'t  ' .or. cb.eq.'T  ' .or.  ! temp 
+     $      cb.eq.'f  ' .or. cb.eq.'F  '       ! flux 
+     $      ) then !  
             ia=0
             call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
             do iz=kz1,kz2
@@ -9193,21 +9159,15 @@ c-----------------------------------------------------------------------
                ia = ia + 1
                k  = ia + (f-1)*nxz + (e-1)*nfaces*nxz
                if(cb.eq.'t  '.or. cb .eq.'T  ') then  ! Thermal dirich
+c     According to the one dimensional thing, on Dir, up = 2*ud - um 
                    call nekasgn(ix,iy,iz,e)
-c                  call userbc_f(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-c need a copy of userbc_f to write this routine, shouldn't be hard
-c though
-                   call userbc_t(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-
-                   btf(k) = 2.*btf(k) - tmtp(ix,iy,iz,e) 
-               else if(cb.eq.'W  ') then ! ! solid wall 
+                   call userbc_t(ix,iy,iz,f,e,ieg) ! temperature 
+                   btf(k) = 2.*tem - tmtp(ix,iy,iz,e)  !! 
+               else if(cb.eq.'f  ' .or. cb.eq.'F  ' ) then ! ! solid wall 
+c     According to the one dimensional thing, on Neu, up =  um 
                    call nekasgn(ix,iy,iz,e)
-                   call userbc_w(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
-                   write(6,*) 'What happens at wall? '
-                   call exitt 
-               else if(cb.eq.'o  ' .or. cb.eq.'O  ') then ! 
-                   write(6,*) 'What happens at outflow? '
-                   call exitt 
+                   call userbc_f(ix,iy,iz,f,e,ieg) ! rho, rux, ruy..
+                   btf(k) = tmtp(ix,iy,iz,e)           !! 
                endif
             enddo 
             enddo 
@@ -9223,6 +9183,9 @@ c----- Bottom of Boundary
 c-----------------------------------------------------------------------
       subroutine ht_vol_eval(rhs) ! ! 3+2? 
 c
+c --\
+c    - Volume eval. 
+c --/
 c
       include 'SIZE'
       include 'TOTAL'
@@ -9230,15 +9193,25 @@ c
       include 'DG'      ! dg_face is stored
       parameter(le=lx1*ly1*lz1)
       integer  e
-      real     rhs(le,1), tm2(le,lelt)
+      real     rhs(le,1)
 
       n=nx1*ny1*nz1*nelt
       ne=nx1*ny1*nz1
+      if(if3d) then 
+        write(6,*) 'ht_vol_eval :: no 3d heat yet' 
+        call exitt
+        stop 
+      else  ! 2 
+c      if(nid.eq.0) then 
+c       write(6,*) 'ht_vol_eval :: is sht already the volume term' 
+c       write(6,*) 'ht_vol_eval :: directly return ' 
+c      endif 
+      endif 
       
       return
       end
 c-----------------------------------------------------------------------
-      subroutine ht_surf_res(flx) ! ! 3+2? 
+      subroutine ht_surf_res(rsf) ! ! 3+2? 
 c --\
 c    - Surface residue. Central now? Pick the simplest one 
 c    - Can have multiple paths later, e.g. different fluxes  
@@ -9247,12 +9220,17 @@ c --/
       include 'TOTAL'
       include 'DGUSE'
       include 'DG'      ! dg_face is stored
-      real     flx(1)
+      real     rsf(1)
+      real     flx(lf)
+      real     tm1(lt), tm2(lt) 
 
       n=nx1*ny1*nz1*nelt
       ne=nx1*ny1*nz1
       
-      call ht_flx_srf(flx) ! no de-al yet 
+      call ht_flx_srf(flx) ! save into flx array  
+
+      call face2full (tm1,flx)  ! 
+      call invbf     (rsf,tm1) ! all elements 
 
       return
       end
@@ -9268,14 +9246,17 @@ c     Lax-Friedrichs flux, only weak form now
       integer  i, f, e, k
       real     flx(1)      ! defined on surface 
       real     ctrh(lf,3)  ! defined on surface, ndim components 
+     $       , dift(lf)    ! defined on surface
+     $       , tau (lf)    ! defined on surface
 
       n=nx1*ny1*nz1*nelt
       nxz=nx1*nz1
       nfaces=2*ndim
 
 c    Surf integral 
-      call ht_flx_ctr(ctrh) !  ! central flux of h 
-      call ht_flx_dif(dift) !  ! difference in temp, eval tau in this 
+      call ht_flx_ctr(ctrh) ! central flux of h 
+      call ht_flx_dif(dift) ! difference in temp
+      call ht_flx_tau(tau ) ! eval tau 
 
       k = 0
       do e=1,nelt
@@ -9286,12 +9267,12 @@ c    Surf integral
             flx(k) =  ctrh(k,1)*unx(i,1,f,e)
      $              + ctrh(k,2)*uny(i,1,f,e)
      $              + ctrh(k,3)*unz(i,1,f,e)
-     $              - tau(k)*udf(k)/2. 
+     $              - tau(k)*dift(k)/2. 
             flx(k) = flx(k)*area(i,1,f,e)
          else ! 2D 
             flx(k) =  ctrh(k,1)*unx(i,1,f,e)
      $              + ctrh(k,2)*uny(i,1,f,e)
-     $              - tau(k)*udf(k)/2. 
+     $              - tau(k)*dift(k)/2. 
             flx(k) = flx(k)*area(i,1,f,e)
          endif
       enddo
@@ -9301,12 +9282,56 @@ c    Surf integral
       return
       end
 c-----------------------------------------------------------------------
+      subroutine ht_flx_tau(tau) ! eval tau 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      real     tau(1)   ! defined on surface 
+
+      n=nx1*ny1*nz1*nelt
+      nf=nx1*nz1*2*ndim*nelt !
+
+      call rone       (tau, nf)
+      call cmult      (tau, 0.5 , nf)      ! Hack to be 0.5 for now 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine ht_flx_dif(dift) !  ! difference in tem
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      real     dift(1)
+      real     ta  (lt), ftsv(lf), btf  (lf) 
+
+      n=nx1*ny1*nz1*nelt
+      nf=nx1*nz1*2*ndim*nelt !
+
+      call copy       ( ta, tmtp, n)       !
+      call full2face  (dift, ta)            !
+
+      call rzero      (btf, nf)
+      call htbc_aux   (btf) ! 3+2
+
+      call copy       (ftsv, dift, nf)      !
+      call cmult      (ftsv, 2. , nf)      !
+
+      call add2       (dift,btf,nf)         ! first add bc 
+      call gs_op      (dg_hndl,dift,1,1,0)  ! 1 ==> + , a + b 
+      call chsign     (dift,nf)             ! - ( a + b ) 
+      call add2       (dift,ftsv,nf)        ! 2 a - ( a + b ) = a - b
+
+      return
+      end
+c-----------------------------------------------------------------------
       subroutine ht_flx_ctr(ctrh) !  ! central 
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
       include 'DG'      ! dg_face is stored
-      real     btf(lf), tpf (lf) 
+      real     btf(lf), tpf (lf), btg(lf), bth (lf) 
       real     ctrq(lf,1)
 
       n=nx1*ny1*nz1*nelt
@@ -9359,44 +9384,39 @@ c-----------------------------------------------------------------------
       do f=1,nfaces
          ieg=lglel(e)
          cb =cbc(f,e,ifield)
-         write(6,*) 'bc for aux, in temperature eq' 
-c        if(cb.eq.'f  ' .or. cb.eq.'F  ' .or. 
-c    $      cb.eq.'o  ' .or. cb.eq.'SYM' .or.  
-c    $      cb.eq.'O  ' .or. 
-c    $      cb.eq.'w  ' .or. cb.eq.'W  ' ) then
-c           ia=0
-c           call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
-c           do iz=kz1,kz2
-c           do iy=ky1,ky2
-c           do ix=kx1,kx2
-c              ia = ia + 1
-c              k  = ia + (f-1)*nxz + (e-1)*nfaces*nxz
+c        write(6,*) 'bc for aux, in temperature eq' 
+         if(cb.eq.'f  ' .or. cb.eq.'F  ' .or.  ! Flux 
+     $      cb.eq.'t  ' .or. cb.eq.'T  '       ! Temp 
+     $      ) then
+            ia=0
+            call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
+            do iz=kz1,kz2
+            do iy=ky1,ky2
+            do ix=kx1,kx2
+               ia = ia + 1
+               k  = ia + (f-1)*nxz + (e-1)*nfaces*nxz
 
-c              if(cb.eq.'f  ') then  ! qh+ = qh- 
+               if(cb.eq.'t  ' .or. cb.eq.'T  ') then ! 
 
-c                call nekasgn(ix,iy,iz,e)
-c                call userbc_f(ix,iy,iz,f,e,ieg) 
+                 call nekasgn(ix,iy,iz,e)
+                 call userbc_f(ix,iy,iz,f,e,ieg) 
 
-c                bf1(k) = fdf(k) 
-c                bg1(k) = gdf(k)  ! BC for F_v
-c                if(if3d) bh1(k) = hdf(k) 
-c              else if(cb.eq.'o  ') then
-c                  call nekasgn(ix,iy,iz,e)
-c                  call userbc_o(ix,iy,iz,f,e,ieg)
-c              else if(cb.eq.'SYM') then ! slip wall 
-c                  call nekasgn(ix,iy,iz,e)
-c                  call userbc_sym(ix,iy,iz,f,e,ieg)
-c              else if(cb.eq.'W  '.or.cb.eq.'w  ') then ! slip wall 
+                 bf1(k) = fdf(k) 
+                 bg1(k) = gdf(k)  ! BC for F_v
+                 if(if3d) bh1(k) = hdf(k) 
+               else if(cb.eq.'f  '.or. cb.eq.'F  ') then
 c if no boundary conditions on \nabla u \cdot n 
 c set bf1 = fdf 
-c                bf1(k) = fdf(k) 
-c                bg1(k) = gdf(k)  ! BC for F_v
-c                if(if3d) bh1(k) = hdf(k) 
-c              endif
-c           enddo 
-c           enddo 
-c           enddo 
-c        endif
+                 call nekasgn(ix,iy,iz,e)
+                 call userbc_f(ix,iy,iz,f,e,ieg) 
+                 bf1(k) = - fdf(k) 
+                 bg1(k) = - gdf(k)  ! BC for F_v
+                 if(if3d) bh1(k) = - hdf(k) 
+               endif
+            enddo 
+            enddo 
+            enddo 
+         endif
       enddo 
       enddo 
 
@@ -9421,21 +9441,19 @@ c
       ne=nx1*ny1*nz1
       
       if(if3d) then
-c       write(6,*) '3d not ther e' 
         call rzero(tm2,n)
-        call grad_bm1_t(tm2,fd,gd,hd)
+        write(6,*) 'ht_vol_res :: 3d not ther e' 
+        call exitt 
       else  ! first use code that's already there, will it work? 
         call rzero(tm2,n)
         call rzero(hd,n)
         if(flg.ge.2) then 
-          call grad_bm1_t(tm2,fd,gd,hd) ! no de-aliasing now 
+          call grad_bm1_t(tm2,sht(1,1),sht(1,2),hd) ! no de-aliasing now 
         endif
       endif
 
-      if(flg.ge.2) then 
-        call invbf (rhs,tm2) ! all elements 
-        call chsign(rhs,n)   ! all elements 
-      endif
+      call invbf (rhs,tm2) ! all elements 
+      call chsign(rhs,n)   ! all elements 
 c 
       return
       end
