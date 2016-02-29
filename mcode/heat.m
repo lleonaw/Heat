@@ -28,11 +28,13 @@ function succ = heat
     Db = (2./dl)*Dh; % d kexi/ dx
 
     ifsrc = true; 
-    qs = -2.*ones(size(x));
+    qs = -.5*ones(size(x)); qs = 0.*qs;
 
     % Init scalar
     % u0 = 0.5 + sin(pi.*x);
-    u0 = 2. - x.^2; 
+    u0 = 1. - x.^2; 
+    u0 = cos(pi.*x/2.);
+    uex = zeros(size(u0)); er = zeros(size(u0)); 
     ka = ones(Nx,1); % Scalar field 
 
     t = 0.; dt = 1e-5;
@@ -72,11 +74,15 @@ function succ = heat
 
         t = t + dt;
         if(ifplt && mod(i,Nt/20)==0)
-            clf; figure(1);hold on;
+            % clf; 
+            figure(1);hold on;
 %            ylim([-0.1,1.1]);
             xlim([-1. 1.]);
             for ie = 1:Ne
+                uex(:,ie) = exp(-ka.*(pi/2.)^2.*t).*cos(pi*x(:,ie)/2.);
                 plot(x(:,ie),u(:,ie),'b-');
+                plot(x(:,ie),uex(:,ie),'rx');
+                er(:,ie) = u(:,ie) - uex(:,ie); 
             end
             xlabel('-- x --'); ylabel('-- u --');
             title(['solution at time t = ' num2str(t) ]);

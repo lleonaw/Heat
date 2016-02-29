@@ -14,3 +14,10 @@ Fri Feb  5 10:20:21 CST 2016
 Copied inv6_new from 4isen/mgrind/ 
 Do 2D NS from it. 
 Get diffusion to work first 
+
+Sun Feb 28 16:57:25 CST 2016
+Currently I have 2nd order convergence with
+Ne = 2, N = 2^j
+Except for Ne = 2, N = 4, in which case 
+the code blows up. 
+Very weird. 
