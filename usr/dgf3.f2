@@ -32,9 +32,9 @@ c     . Mask of boundary. !
 c     . Roe flux. !
 c-----------------------------------------------------------------------
       subroutine dg_flow
-c      /----------------------------------\
-c-----|  dg method for fluid flow problem  |-----
-c      \----------------------------------/
+c     /----------------------------------\
+c-----| dg method for fluid flow problem |-----
+c     \----------------------------------/
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
@@ -574,7 +574,7 @@ c-----------------------------------------------------------------------
           do j=1,ny1
           do i=1,nx1
               call nekasgn(i,j,k,ie)
-              call useric_fl(i,j,k,ie) ! get rho, enr, rux,.. ruz
+              call useric_dg(i,j,k,ie) ! get rho, enr, rux,.. ruz
               rh(i,j,k,ie) = rho 
               En(i,j,k,ie) = enr 
               rvx(i,j,k,ie)= rux
@@ -8586,20 +8586,28 @@ c---- End de-aliasing
 c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
       subroutine dg_heat
-c      /----------------------------\
-c-----|  dg method for heat problem  |-----
-c      \----------------------------/
+c     /----------------------------\
+c-----| dg method for heat problem |-----
+c     \----------------------------/
       include 'SIZE'
       include 'TOTAL'
       include 'DGUSE'
 
       rcp = 1.000  ! air: specific heat 1.005 at 25 C, density 1.1~1.2 
       kcd = 0.026  ! air: thermal conductivity 
-      prd = 0.711  ! air: prandtl number? can't remember now  
+      prd = 0.711  ! air 
+
+c     miu = param(2) 
+c     prt = 2.0e20  ! large prandtl number => neglib. thermal 
+                    ! or just comment out lines in vis_flx 
+c     gama = 1.4
 
       call dg_advect_setup
 
-      call dg_advance_execute_ht 
+c     call dg_advect_execute
+      if(ifhedg) then 
+        call dg_advance_execute_ht 
+      endif 
 
       return
       end
@@ -8676,19 +8684,45 @@ c-----------------------------------------------------------------------
 c     htflx  = 2      ! 
       htflx  = 1      ! 1 - Central, 2 - 
 c     
+      ifstr = .true.  ! strong form 
+      ifstr = .false. ! weak  form 
+
+c     de-aliase, currently only the weak form has de-aliasing option
+      ifdeal = .true. 
+      ifdeal = .false. 
+
+c     debugging, print out function call history 
+      ifdbg = .true.   ! for debugging, write out routine stack
+      ifdbg = .false.  ! for debugging, write out routine stack
+
 c     for outpost 
       ifvo = .true.
       ifpo = .true.
       ifto = .true.
 
       if(nid.eq.0) then 
+      write(6,*) 'o------------------------------------------------o'
+      write(6,*) '| Heat problem                    '
+      write(6,*) 'o------------------------------------------------o'
+      write(6,*) '| Time-stepper order is           ', tmstpp
+      write(6,*) 'o------------------------------------------------o'
+      write(6,*) '| Flux type is ( 1 - Ctr,       ) ', htflx
+      write(6,*) 'o------------------------------------------------o'
+      if(ifstr) then 
+      write(6,*) '| Strong form                     '
+      write(6,*) 'o------------------------------------------------o'
+      else
+      write(6,*) '| Weak form                       '
+      write(6,*) 'o------------------------------------------------o'
+      if(ifdeal) then 
+        write(6,*) '| De-aliase volume & surface term '
         write(6,*) 'o------------------------------------------------o'
-        write(6,*) '| Heat problem                    '
+      else
+        write(6,*) '| Not de-aliased                  '
         write(6,*) 'o------------------------------------------------o'
-        write(6,*) '| Time-stepper order is           ', tmstpp
-        write(6,*) 'o------------------------------------------------o'
-        write(6,*) '| Flux type is ( 1 - Ctr,       ) ', htflx
-        write(6,*) 'o------------------------------------------------o'
+      endif
+      endif
+      endif
       endif
 
       return
@@ -8708,8 +8742,12 @@ c     this if is working. for ifdg flag turned on
           ! copy into my data fields, time is set in restarting
           if(if3d) then 
               if(nid.eq.0) write(6,*) 'Done :: DG Restarting 3d...'
+c             call copy_all( vx, vy, vz, pr,En
+c    $                    ,  vx, vy, vz, pr, t,n)  ! pres -> density
               call copy(tep,t,n) 
           else
+c             call copy_all2(rvx,rvy, rh,En
+c    $                      , vx, vy, pr, t,n)  ! pres -> density
               call copy(tep,t,n) 
               if(nid.eq.0) write(6,*) 'in restart '
               call printmax_1(tep) 
@@ -8738,8 +8776,8 @@ c-----------------------------------------------------------------------
           do j=1,ny1
           do i=1,nx1
               call nekasgn(i,j,k,ie)
-              call useric_ht(i,j,k,ie) ! get rho, enr, rux,.. ruz
-              tep(i,j,k,ie)= tem 
+              call useric_dg(i,j,k,ie) ! get rho, enr, rux,.. ruz
+              tep(i,j,k,ie)= tmp 
           enddo 
           enddo 
           enddo 
@@ -9030,7 +9068,7 @@ c
 c    Vol integral 
 c    Temperature in tmtp field 
       do e=1,nelt 
-        call col3 (mtp(1,e),tmtp(1,1,1,e),w3m1,le) ! multi mass matrix 
+        call col3 (mtp(1,e),tmtp(1,e),w3m1,le) ! multi mass matrix 
       enddo 
 
       if(if3d) then  ! Can I use this routine from the diffusion part ? 
@@ -9149,7 +9187,8 @@ c-----------------------------------------------------------------------
          ieg=lglel(e)
          cb =cbc(f,e,ifield)
          if(cb.eq.'t  ' .or. cb.eq.'T  ' .or.  ! temp 
-     $      cb.eq.'f  ' .or. cb.eq.'F  '       ! flux 
+     $      cb.eq.'f  ' .or. cb.eq.'F  ' .or.  ! flux 
+c    $      cb.eq.'w  ' .or. cb.eq.'W  ' .or.  ! w,o shouldn't matter 
      $      ) then !  
             ia=0
             call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
@@ -9202,10 +9241,10 @@ c
         call exitt
         stop 
       else  ! 2 
-c      if(nid.eq.0) then 
-c       write(6,*) 'ht_vol_eval :: is sht already the volume term' 
-c       write(6,*) 'ht_vol_eval :: directly return ' 
-c      endif 
+       if(nid.eq.0) then 
+        write(6,*) 'ht_vol_eval :: is sht already the volume term' 
+        write(6,*) 'ht_vol_eval :: directly return ' 
+       endif 
       endif 
       
       return
@@ -9386,7 +9425,7 @@ c-----------------------------------------------------------------------
          cb =cbc(f,e,ifield)
 c        write(6,*) 'bc for aux, in temperature eq' 
          if(cb.eq.'f  ' .or. cb.eq.'F  ' .or.  ! Flux 
-     $      cb.eq.'t  ' .or. cb.eq.'T  '       ! Temp 
+     $      cb.eq.'t  ' .or. cb.eq.'T  ' .or.  ! Temp 
      $      ) then
             ia=0
             call facind(kx1,kx2,ky1,ky2,kz1,kz2,nx1,ny1,nz1,f)
