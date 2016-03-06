@@ -32,13 +32,14 @@ function [succ,infer] = poisson(mth)
     elseif(initflg==2) 
 % Init Case 2 
 %     uex = -1.*sin(pi.*x); qs = (pi^2)*uex;
-      uex = -1.*sin(pi.*x); qs = -(pi^2)*sin(pi.*x);
+      uex =  1.*sin(pi.*x); qs =  (pi^2)*sin(pi.*x);
     elseif(initflg==3) 
 % Init Case 3 
       uex = 1.*cos(pi.*x); qs = 1.*(pi^2)*cos(pi.*x);
     elseif(initflg==4) 
 % Init Case 4 
-      uex = 1.- 1.*cos(2.*pi.*x); qs = -((pi^2)*4.).*cos(2.*pi.*x);
+%     uex = 1.- 1.*cos(2.*pi.*x); qs = -((pi^2)*4.).*cos(2.*pi.*x);
+      uex = 1.+ 1.*cos(pi.*x); qs = ((pi^2)).*cos(pi.*x);
     end
 %   plot(plx,reshape(uex,Nx*Ne,1),'ro-');hold on;
 %   plot(plx,reshape(qs,Nx*Ne,1),'bx-');
@@ -92,7 +93,7 @@ function [succ,infer] = poisson(mth)
 %     u   = A \ rhs; 
       u(1:end-1) = A(1:end-1,1:end-1) \ rhs(1:end-1); u(end) = u(1); 
       if(initflg==3)
-          u = u - 1.;
+%         u = u - 1.;
       end
     end 
     plu   = reshape(u,Nx*Ne,1); 

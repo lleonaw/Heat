@@ -18,13 +18,14 @@ Nx = N + 1;       % Numb of points in each elem.
 Nn  = 8; 
 Nen = 4; 
 ere = zeros(Nen,Nn); plnx = zeros(Nen,Nn); plne = zeros(Nen,Nn);
-for initflg=3:3 % 4
+for initflg=1:4 % 4
    for j=1:Nn
    %  N = j+1; Nx = N + 1;
       N = 2*j; Nx = N + 1;
    %  N = 2^j+1; Nx = N + 1;
-      for i=1:1 % Nen
-         Ne = i*2;
+      for i=1:1%Nen
+%        Ne = i*2;
+         Ne = i;
          [succ,infer] = poisson(mth); 
          if(succ)
            ere(i,j) = infer; 
@@ -58,16 +59,16 @@ for initflg=3:3 % 4
 end 
 
 %% Various initial conditions 
-%figure(9);  
-%loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
-%loglog(plnsv,eric2,'o-','linewidth',1.5);
-%loglog(plnsv,eric3,'o-','linewidth',1.5);
-%loglog(plnsv,eric4,'o-','linewidth',1.5);
-%loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
-%loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
-%legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
-%xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
+ figure(9);  
+ loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
+ loglog(plnsv,eric2,'o-','linewidth',1.5);
+ loglog(plnsv,eric3,'o-','linewidth',1.5);
+ loglog(plnsv,eric4,'o-','linewidth',1.5);
+ loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
+ loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
+ legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
+ xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+ title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
 
 % A = load('A.dat'); 
 % disp(['Is A symmetric? 1-Yes, 0-No: ', num2str(issymmetric(A))]);
@@ -85,27 +86,26 @@ end
 %%  -       or at least my code belives they have to be 0 
 %%  - - - - 
 %% Fix Ne, varying N 
- figure(9);  
- loglog(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
- loglog(plnx(1,:),plnx(1,:).^(-2),'x-','linewidth',1.5);
- %semilogy(plnx(1,:),exp(-plnx(1,:)),'x-','linewidth',1.5); 
-  legend('Err data','N^{-2}'); 
- %legend('Err data','e^{-N}'); 
- xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
- title('Pointwise error, Poisson problem, N_e = 2');
-
 % figure(9);  
-% loglog(pln(:,1),ere(:,1),'ro-','linewidth',2);hold on;
-% loglog(pln(:,1),6.*10.^(-2).*pln(:,1).^(-2),'rx-','linewidth',2);
-% loglog(pln(:,2),ere(:,2),'bo-','linewidth',2);
-% loglog(pln(:,2),1.*10.^(-2).*pln(:,2).^(-3),'bx-','linewidth',2);
-% loglog(pln(:,3),ere(:,3),'ko-','linewidth',2);
-% loglog(pln(:,3),3.*10.^(-4).*pln(:,3).^(-4),'kx-','linewidth',2);
-% loglog(pln(:,4),ere(:,4),'mo-','linewidth',2);
-% loglog(pln(:,4),1.*10.^(-5).*pln(:,4).^(-5),'mx-','linewidth',2); 
-% legend('Num. Error,N=1','N_e^{(-2)},N=1'... 
-%       ,'Num. Error,N=2','N_e^{(-3)},N=2'... 
-%       ,'Num. Error,N=3','N_e^{(-4)},N=3'... 
-%       ,'Num. Error,N=4','N_e^{(-5)},N=4'); 
-% title(['Inf error for varying N, varying N_e']);  hold off;
-% xlabel('N_e'); ylabel('Inf norm error');
+%%loglog(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
+%%loglog(plnx(1,:),plnx(1,:).^(-2),'x-','linewidth',1.5);
+%%legend('Err data','N^{-2}'); 
+% semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
+% semilogy(plnx(1,:),exp(-plnx(1,:)),'x-','linewidth',1.5); 
+% legend('Err data','e^{-N}'); 
+% xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+% title('Pointwise error, Poisson problem, N_e = 2');
+
+%figure(9);  
+%semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
+%semilogy(plnx(2,:),ere(2,:),'o-','linewidth',1.5);
+%semilogy(plnx(3,:),ere(3,:),'o-','linewidth',1.5);
+%semilogy(plnx(4,:),ere(4,:),'o-','linewidth',1.5);
+%semilogy(plnx(1,:),exp(-plnx(1,:)),'x-','linewidth',2);
+%legend('Num. Error,Ne=2'...%,'N_e^{(-2)},N=1'... 
+%      ,'Num. Error,Ne=4'...%,'N_e^{(-3)},N=2'... 
+%      ,'Num. Error,Ne=6'...%,'N_e^{(-4)},N=3'... 
+%      ,'Num. Error,Ne=8'...%,'N_e^{(-5)},N=4'); 
+%      ,'e^{-N}');...%,'N_e^{(-5)},N=4'); 
+%title(['Inf error for varying N, varying N_e']);  hold off;
+%xlabel('N'); ylabel('Inf norm error');
