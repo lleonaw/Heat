@@ -12,11 +12,11 @@ ifplt = true;
 
 T = 4.; 
 % Ne = 10;          % Number of elem
-N = 4;            % Poly. order
+N = 2;            % Poly. order
 Nx = N + 1;       % Numb of points in each elem.
 
 Ntn = 4; 
-Nn  = 8; 
+Nn  = 6; 
 % Nn  = 4;  % 16 is enough... 32 takes some time, 64 takes a while ! ! 
 Nen = 4; 
 
@@ -30,12 +30,12 @@ for itm=1:1 %Ntn
     CFL = 0.1 /(2.^itm);  
 %   CFL = 0.3 /(2.^itm) / 2.; 
     for initflg=2:2 % 4
-       for j=1:1 %Nn
+       for j=1:Nn
        % Use CFL = 0.0125 for polynomial  
        %  N = j+1; Nx = N + 1;
 %         N = 2*j; Nx = N + 1;
-%         N = 2^j; Nx = N + 1;
-          N = 4; Nx = N + 1;
+          N = 2^j; Nx = N + 1;
+%         N = 8; Nx = N + 1;
           for i=1:1%Nen
              Ne = i*4;
     %        Ne = i;
@@ -77,13 +77,14 @@ end
 
 %% spatial convergence
 %% Fix Ne, varying N 
-% figure(9);  
-% semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
-% semilogy(plnx(1,:),exp(-3*plnx(1,:)),'x-','linewidth',1.5); 
-% legend('Err data','e^{-N}'); 
-%%legend('Err data','N^{-2}'); 
-% xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+  figure(9);  
+  semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
+  semilogy(plnx(1,:),exp(-3*plnx(1,:)),'x-','linewidth',1.5); 
+  legend('Err data','e^{-N}'); 
+ %legend('Err data','N^{-2}'); 
+  xlabel('$N$','Interpreter','Latex'); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex');
 % title('Max pointwise relative error, heat problem, N_e = 2');
+  title('Max pointwise relative error for evaluateing second derivative, N_e = 2');
 
 % temporal convergence 
 % figure(9);  
