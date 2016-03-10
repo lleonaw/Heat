@@ -7,8 +7,8 @@
 global Ne Nx ifplt initflg T CFL dt
 global R2 u0 
 dt = 1e-5;    % T = 4.e-0; 
-ifplt = false; 
 ifplt = true; 
+ifplt = false; 
 
 T = 4.; 
 % Ne = 10;          % Number of elem
@@ -30,14 +30,14 @@ for itm=1:1 %Ntn
     CFL = 0.1 /(2.^itm);  
 %   CFL = 0.3 /(2.^itm) / 2.; 
     for initflg=2:2 % 4
-       for j=1:Nn
+       for j=2:2 %Nn
        % Use CFL = 0.0125 for polynomial  
        %  N = j+1; Nx = N + 1;
 %         N = 2*j; Nx = N + 1;
           N = 2^j; Nx = N + 1;
 %         N = 8; Nx = N + 1;
           for i=1:1%Nen
-             Ne = i*4;
+             Ne = (i+2)^2;
     %        Ne = i;
              [succ,infer] = heat_prim_2d; 
              if(succ)
@@ -79,12 +79,12 @@ end
 %% Fix Ne, varying N 
   figure(9);  
   semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
-  semilogy(plnx(1,:),exp(-3*plnx(1,:)),'x-','linewidth',1.5); 
+  semilogy(plnx(1,:),exp(-plnx(1,:)),'x-','linewidth',1.5); 
   legend('Err data','e^{-N}'); 
  %legend('Err data','N^{-2}'); 
   xlabel('$N$','Interpreter','Latex'); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex');
 % title('Max pointwise relative error, heat problem, N_e = 2');
-  title('Max pointwise relative error for evaluateing second derivative, N_e = 2');
+  title(['Max pointwise relative error for evaluateing second derivative, N_e = ',num2str(Ne)]);
 
 % temporal convergence 
 % figure(9);  

@@ -2,8 +2,11 @@
 %  Discontinuous Galerkin method
 %  Explicit scheme, SSP-RK2
 %  New primal form formulation, refer to heatwriteup/writeup/heat.pdf
-% --- Forward operator (derivative operator) 
-%   . in 2D!   2x2 can work, hard coded 
+% --- 
+%  Mon Feb 29 16:34:30 CST 2016 
+%  Seems to be working now... Can observe 
+%   . 2nd order in time 
+%   . spectral in space 
 % --- 
 function [succ,infer] = heat_prim_2d 
     global Ne Nx ifplt initflg T CFL dt
@@ -19,26 +22,13 @@ function [succ,infer] = heat_prim_2d
     axe = zeros(Ne,1); aye = zeros(Ne,1); 
     xe = zeros(Nx,Ne);  ye = zeros(Nx,Ne); 
     x2  = zeros(Nx,Nx,Ne);  y2 = zeros(Nx,Nx,Ne); 
-% % Geom init is hard coded for 2x2  ! ! !  Wed Mar  9 13:59:14 CST 2016
-%   for ie = 1:Ne
-%       axe(ie) = ax - (mod(ie,2)-1.)*dlx;  % 1,3 get ax; 2,4 get ax + dlx, 
-%       aye(ie) = ay + 0.5*(1.+ sign(ie-2.1))*dly;  % 1,2 get ay, 3,4 get ay+dly 
-%       xe (:,ie) = axe(ie) + dlx/2.*(z + 1.); 
-%       ye (:,ie) = aye(ie) + dly/2.*(z + 1.); 
-%       [x2(:,:,ie),y2(:,:,ie)] = meshgrid(xe(:,ie),ye(:,ie)); 
-%       x2(:,:,ie) = x2(:,:,ie)'; y2(:,:,ie) = y2(:,:,ie)'; 
-%   end
-    ie = 1; 
-    for iey = 1:Ney
-    for iex = 1:Nex
-        axe(ie)   = ax + double(iex - 1.).*dlx; 
-        aye(ie)   = ay + double(iey - 1.).*dly; 
-        xe (:,ie) = axe(ie) + (dlx/2.).*(z + 1.);
-        ye (:,ie) = aye(ie) + (dly/2.).*(z + 1.);
+    for ie = 1:Ne
+        axe(ie) = ax - (mod(ie,2)-1.)*dlx;  % 1,3 get ax; 2,4 get ax + dlx, 
+        aye(ie) = ay + 0.5*(1.+ sign(ie-2.1))*dly;  % 1,2 get ay, 3,4 get ay+dly 
+        xe (:,ie) = axe(ie) + dlx/2.*(z + 1.); 
+        ye (:,ie) = aye(ie) + dly/2.*(z + 1.); 
         [x2(:,:,ie),y2(:,:,ie)] = meshgrid(xe(:,ie),ye(:,ie)); 
         x2(:,:,ie) = x2(:,:,ie)'; y2(:,:,ie) = y2(:,:,ie)'; 
-        ie = ie + 1; 
-    end
     end
     x = reshape(x2,Nx*Nx,Ne); y = reshape(y2,Nx*Nx,Ne); 
     Mx = (dlx/2.)*Mh; 
@@ -47,15 +37,14 @@ function [succ,infer] = heat_prim_2d
     Dy = (2./dlx)*Dh; % d kexi/ dx
     Kx = (2./dlx)*Kh; % 1d stiffness matrix, Kx = Ky
     Ky = (2./dly)*Kh; % 1d stiffness matrix, Kx = Ky
+
 % % Exact solution
 %   if(initflg==1)     % Init Case 1  
 %     u0 = 1.*cos(pi.*x/2.); qs = ((pi^2)/4.)*cos(pi.*x/2.);
 %   elseif(initflg==2) % Init Case 2 
-%     phi = pi*(1./4.),  % With phase shift, forward derivative works!    
-      phi = 0.        ;  % With phase shift, forward derivative works!    
-      u0 =  1.*sin(pi.*x+phi); qs = (pi^2)*u0;
+      u0 = -1.*sin(pi.*x); qs = (pi^2)*u0;
 %     u0 =  1.*sin(pi.*y); qs =  (pi^2)*sin(pi.*x);
-      uxx0 = pi^2.*sin(pi.*x+phi); 
+      uxx0 = pi^2.*sin(pi.*x); 
 %     uyy0 = -pi^2.*sin(pi.*y); 
 %   elseif(initflg==3) % Init Case 3 
 %     u0 = 1.*cos(pi.*x); qs = 1.*(pi^2)*cos(pi.*x);
@@ -67,6 +56,7 @@ function [succ,infer] = heat_prim_2d
 % % Full 2 face - R matrix - R2, for ONE 2D element  
     In = eye(Nx); R2 = zeros(4*Nx, Nx*Nx); 
     R2 = [kron(In, In(:,1)');kron(In, In(:,end)');kron(In(:,1)', In);kron(In(:,end)', In)]; 
+
 % % nhat matrix 
     nhx = zeros(Nf); nhy = zeros(Nf); 
     for ie=1:Ne
@@ -88,13 +78,14 @@ function [succ,infer] = heat_prim_2d
         end
     end
     end
-    nhx = sparse(nhx); nhy = sparse(nhy); 
+    nhx = sparse(nhx); nhy = sparse(nhy); %   nhat = [nhx,nhy] ; 
  
 % % Area matrix 
     areay = zeros(Nf); areax = zeros(Nf); 
     for ie=1:Ne
     for iface=1:4
-        i0 = 1 + (iface-1)*Nx; ifn = i0 + Nx - 1; 
+        i0 = 1 + (iface-1)*Nx  ; 
+        ifn = i0 + Nx - 1 ; 
         areay(i0:ifn,i0:ifn) = (dly/2.).*diag(w(:));  % Use the 1d weights 
         areax(i0:ifn,i0:ifn) = (dlx/2.).*diag(w(:));  % Use the 1d weights 
     end
@@ -102,13 +93,14 @@ function [succ,infer] = heat_prim_2d
     areay = sparse(areay); areax = sparse(areax); 
 
 % % Q and Q^T 
-    glb_indx = glb_setup(x2,y2);           %  x(nx1,nx1,ne)
-    bdry_flg = bdry_setup(x2,y2);          % setup boundary flags - - is not right for 3x3 
-    ka = ones(Nx,1);                       % Scalar field 
+    glb_indx = glb_setup(x2,y2);   %  x(nx1,nx1,ne)
+    bdry_flg = bdry_setup(x2,y2);  % setup boundary flags 
+
+    ka = ones(Nx,1);                         % Scalar field 
     nu = 1.*ones(Nx*Nx,1); nu = diag(nu);  % conductivity 
 
     % Time stepping setup 
-%   CFL = 0.1; %   CFL = nu(1,1)*dt/((dx)^2); 
+    CFL = 0.1; %   CFL = nu(1,1)*dt/((dx)^2); 
     t  = 0.; dxa = diff(x(:,1)); dx = min(dxa); 
     dt = CFL*(dx)^2 /nu(1,1);  % Alright 0.1 is as big as it gets 4 me 
     if(dt>=T)
@@ -118,39 +110,41 @@ function [succ,infer] = heat_prim_2d
     disp(['Init case = ', num2str(initflg),...
           ' , Ne = ',num2str(Ne),' , N = ', num2str(N),... 
           ' , Nt = ',num2str(Nt),... 
-          ' , dx = ',num2str(dx),... 
           ' ,dt =',num2str(dt),', CFL = ',num2str(CFL)]);
     u = u0; tsv = zeros(Nt,1); infert = tsv; 
 
+    My = sparse(My); Mx = sparse(Mx); 
     M = kron(My,Mx);  % (ly lx)/4 .* Mhat otimes Mhat
-%   [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
+% % % % % % % % % % % % % % % For forward derivative 
+    [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
+% - u  := Nx*Nx, Ne 
+% - Mx := Nx,Nx   ;  My := Nx,Nx
+% - Kx := Nx,Nx   
 %   uxx = zeros(size(uxx0)); 
-% % uxx(2:end-1,:)=M(2:end-1,2:end-1)\urh(2:end-1,:); % no way to directly extract interior 
-%   uxx = M \ urh; 
-%   plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0');  % 
-%   plsc = plt_fld(6,uxx  ,x2,y2,'uxx');  % 
-%   disp('error between uxx and uxx0'); 
-%   infer = max(max(abs(uxx - uxx0))); 
-%   disp(infer); 
-%   error('uxx and uxx0'); 
-% % % % % % % % % % % % % % % % % % % % % 
+%   uxx(2:end-1,:)=M(2:end-1,2:end-1)\urh(2:end-1,:); % no way to directly extract interior 
+    uxx = M \ urh; % no way to directly extract interior 
+                   % and it's the problem 
+                   % interior values match the 1d case 
 
-    for it = 1:Nt          
-  %    RK1 = Euler Explicit  
-      [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                                   glb_indx,bdry_flg,areax,areay,nhx,nhy);
-  %   Probably need to get rid of boundary points, otherwise 
-  %   same points computed on both sides 
-  %   Not sure if this is the problem why time stepping is blowing up 
-  %   Wed Mar  9 23:59:47 CST 2016
-      u = u + dt.*(M \ urh);  % Euler exp 
+    plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0');  % 
+    plsc = plt_fld(6,uxx  ,x2,y2,'uxx');  % 
+    disp('error between uxx and uxx0'); 
+    infer = max(max(abs(uxx - uxx0))); 
+    disp(infer); 
+    error('uxx and uxx0'); 
+% % % % % % % % % % % % % % % For forward derivative 
+
+%   for it = 1:Nt          
+%  RK1 = Euler Explicit  
+%     [urh] = lh_pois(u,M,Dx,Dy,Kb,nu,R2,glb_indx,area,nhx,nhy);
+%     u     = u + dt.*(M \ urh);  % Second stage of rk 2
 % % From prev 1D code 
-% %    RK2 
+%      RK2 
 %         [urh] = lh_pois(u,Mb,Db,Kb,nu,qqt);   
 %         u1    = u + dt.*(Mb \ urh);             % First stage of rk 2
 %         [urh] = lh_pois(u1,Mb,Db,Kb,nu,qqt);   
 %         u     = 0.5*(u + u1 + dt.*(Mb\ urh));  % Second stage of rk 2
-% %    RK4 
+%      RK4 
 %         urh = lh_pois( u,Mb,Db,Kb,nu,qqt);  k1  = Mb \ urh; % trk = t; 
 %         u1  = u + 0.5*dt*k1;                                % First stage 
 %         urh = lh_pois(u1,Mb,Db,Kb,nu,qqt);  k2  = Mb \ urh; % trk = t + 0.5*dt; 
@@ -159,17 +153,10 @@ function [succ,infer] = heat_prim_2d
 %         u3  = u + 1.0*dt*k3;                                % Thrid stage 
 %         urh = lh_pois(u3,Mb,Db,Kb,nu,qqt);  k4  = Mb \ urh; % trk = t + 0.5*dt; 
 %         u   = u + dt*(k1/6. + k2/3. + k3/3. + k4/6.);       % Fourth stage
-      t = t + dt;
-      if(initflg==2) 
-          uex = exp(-nu(1).*(pi)^2.*t).*sin(pi.*x + phi);
-      end 
-      er      = u - uex; 
-      tsv(it) = t; 
-      mxtlu   = norm(uex,Inf); infert(it) = norm(er,Inf)/ mxtlu; 
-      infert(it), 
-      if(ifplt==0)
-%       plsc = plt_fld(4,uex,x2,y2,'uex');  % 
-        plsc = plt_fld(6,u,x2,y2,'u');  % 
+%     t = t + dt;
+%     if(initflg==2) 
+%       uex = exp(-nu(1).*(pi)^2.*t).*sin(pi.*x);
+%     end 
 %     if(ifplt && mod(it,ceil(Nt/5))==0)
 %       plx = reshape(x,Nx*Nx*Ne,1); 
 %       plu = reshape(u,Nx*Nx*Ne,1); 
@@ -183,21 +170,24 @@ function [succ,infer] = heat_prim_2d
 %       pause(0.01); hold off;
 %       disp(['max(u) = ' num2str(max(max(u))) ...
 %          ' , min(u) = ' num2str(min(min(u))) ' , istep = ' num2str(it)]);
-      end
-    end
+%     end
+%     er = u - uex; 
+%     tsv   (it) = t; 
+%     mxtlu      = norm(uex,Inf); infert(it) = norm(er,Inf)/ mxtlu; 
+%   end
 
-    if(ifplt)
-      figure(10);hold on;
-      plot(tsv,infert,'-');
-      xlabel('t '); 
-      ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
-      title(['Error vs time']);
-      drawnow ; 
-      hold off;
-    end
-    infer = infert(end); % Error at end of time 
-    disp(['At end of time T = ',num2str(T),...
-    ', Relative Inf norm error = ', num2str(infer)]); 
+%   if(ifplt)
+%     figure(10);hold on;
+%     plot(tsv,infert,'-');
+%     xlabel('t '); 
+%     ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
+%     title(['Error vs time']);
+%     drawnow ; 
+%     hold off;
+%   end
+%   infer = infert(end); % Error at end of time 
+%   disp(['At end of time T = ',num2str(T),...
+%   ', Relative Inf norm error = ', num2str(infer)]); 
     succ = true;
 end
 
@@ -210,12 +200,12 @@ function [succ] = plt_fld(idfig,u,x2,y2,str)
     else 
       figure(11); 
     end
-    for ie=1:Ne
-        mesh(x2(:,:,ie),y2(:,:,ie),reshape(u(:,ie),[Nx,Nx])); 
-        if(ie==1) hold on;  end; 
-    end
-    title(str); drawnow; pause
-    hold off; 
+    mesh(x2(:,:,1),y2(:,:,1),reshape(u(:,1),[Nx,Nx])); 
+    hold on; 
+    mesh(x2(:,:,2),y2(:,:,2),reshape(u(:,2),[Nx,Nx])); 
+    mesh(x2(:,:,3),y2(:,:,3),reshape(u(:,3),[Nx,Nx])); 
+    mesh(x2(:,:,4),y2(:,:,4),reshape(u(:,4),[Nx,Nx])); 
+    title(str); 
     succ = true; 
 end
 % % % %  %  %  %  %  %  %  %  % 
@@ -235,13 +225,12 @@ function [i,j] = ind_face2full(ij,iface)
    end
 end
 function bd_flg = bdry_setup(x,y)  % setup boundary flags 
-% Flag boundaries on surface array 
     global Ne Nx 
     Nf = 4*Nx; 
     bd_flg = zeros(Nx,4,Ne); 
     for ie=1:Ne
         for iface=1:4
-        if(((ie==1)&&(iface==1 || iface==3)) ... % 2D hard coded 
+        if(((ie==1)&&(iface==1 || iface==3)) ...
         || ((ie==2)&&(iface==2 || iface==3)) ... 
         || ((ie==3)&&(iface==1 || iface==4)) ... 
         || ((ie==4)&&(iface==2 || iface==4)) ) 
@@ -250,10 +239,8 @@ function bd_flg = bdry_setup(x,y)  % setup boundary flags
         end
     end
 end
-function glb_indx = glb_setup(x,y) 
-% Setup global index array 
+function glb_indx = glb_setup(x,y) % setup global index array 
     global Ne Nx ifplt initflg T CFL dt
-    Nex = round(sqrt(Ne)); Ney = Ne / Nex;  
     Nf = 4*Nx; 
     glb_indx = zeros(Nx,4,Ne); 
     xmid = 999.*ones(4,Ne); ymid = 999.*ones(4,Ne); 
@@ -266,30 +253,23 @@ function glb_indx = glb_setup(x,y)
             xmid(iface,ie) = xmd; ymid(iface,ie) = ymd; 
             flg = 0; 
             ifsv = iface; iesv = ie; 
-            if(abs(xmd-1.) < tol && iface == 2) % For Nex = Ney = sqrt(Ne) 
-                flg = 1; ifsv = 1; iesv = ie - Nex + 1; 
-            elseif( abs(ymd-1.) < tol && iface == 4)
-                flg = 1; ifsv = 3; iesv = ie - (Ney-1)*Nex;
+            if(ie==2 && iface == 2) % Periodic bc 
+                flg = 1; ifsv = 1; iesv = 1;
+            elseif(ie==4 && iface == 2)
+                flg = 1; ifsv = 1; iesv = 3;
+            elseif(ie==3 && iface == 4)
+                flg = 1; ifsv = 3; iesv = 1;
+            elseif(ie==4 && iface == 4)
+                flg = 1; ifsv = 3; iesv = 2;
             end
-%           if(ie==2 && iface == 2) % Hard coded - Periodic bc for 2x2 
-%               flg = 1; ifsv = 1; iesv = 1;
-%           elseif(ie==4 && iface == 2)
-%               flg = 1; ifsv = 1; iesv = 3;
-%           elseif(ie==3 && iface == 4)
-%               flg = 1; ifsv = 3; iesv = 1;
-%           elseif(ie==4 && iface == 4)
-%               flg = 1; ifsv = 3; iesv = 2;
-%           end
-            if(~flg)
-                for ie2 = 1:ie-1
-                   for if2 = 1:4
-                       if(abs(xmd - xmid(if2,ie2))<tol & ...
-                           abs(ymd - ymid(if2,ie2))<tol ) 
-                           flg = 1;  % Pre existing 
-                           ifsv = if2; iesv = ie2; 
-                       end
+            for ie2 = 1:ie-1
+               for if2 = 1:4
+                   if(abs(xmd - xmid(if2,ie2))<tol & ...
+                       abs(ymd - ymid(if2,ie2))<tol ) 
+                       flg = 1;  % Pre existing 
+                       ifsv = if2; iesv = ie2; 
                    end
-                end
+               end
             end
             for ij=1:Nx % Index on face 
                 if(flg==0)      % New index, k++
