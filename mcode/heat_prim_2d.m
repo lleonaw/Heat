@@ -55,7 +55,7 @@ function [succ,infer] = heat_prim_2d
       phi = 0.        ;  % With phase shift, forward derivative works!    
       u0 =  1.*sin(pi.*x+phi); qs = (pi^2)*u0;
 %     u0 =  1.*sin(pi.*y); qs =  (pi^2)*sin(pi.*x);
-      uxx0 = pi^2.*sin(pi.*x+phi); 
+      uxx0 = -pi^2.*sin(pi.*x+phi); 
 %     uyy0 = -pi^2.*sin(pi.*y); 
 %   elseif(initflg==3) % Init Case 3 
 %     u0 = 1.*cos(pi.*x); qs = 1.*(pi^2)*cos(pi.*x);
@@ -105,11 +105,11 @@ function [succ,infer] = heat_prim_2d
     glb_indx = glb_setup(x2,y2);           %  x(nx1,nx1,ne)
     bdry_flg = bdry_setup(x2,y2);          % setup boundary flags - - is not right for 3x3 
     ka = ones(Nx,1);                       % Scalar field 
-    nu = 1.*ones(Nx*Nx,1); nu = diag(nu);  % conductivity 
+    nu = 0.1.*ones(Nx*Nx,1); nu = diag(nu);  % conductivity 
 
     % Time stepping setup 
 %   CFL = 0.1; %   CFL = nu(1,1)*dt/((dx)^2); 
-    t  = 0.; dxa = diff(x(:,1)); dx = min(dxa); 
+    t  = 0.; dxa = diff(x(1:Nx,1)); dx = min(dxa);
     dt = CFL*(dx)^2 /nu(1,1);  % Alright 0.1 is as big as it gets 4 me 
     if(dt>=T)
         error('dt > T, change to a smaller CFL or longer T');
@@ -123,27 +123,31 @@ function [succ,infer] = heat_prim_2d
     u = u0; tsv = zeros(Nt,1); infert = tsv; 
 
     M = kron(My,Mx);  % (ly lx)/4 .* Mhat otimes Mhat
-%   [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
-%   uxx = zeros(size(uxx0)); 
-% % uxx(2:end-1,:)=M(2:end-1,2:end-1)\urh(2:end-1,:); % no way to directly extract interior 
+% % % % % % % % % % % % % % % % % % % % % 
+%   areax, dlx, %   sum(diag(areax(1:Nx,1:Nx))), %   error('area?'); 
+    [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
+    uxx = zeros(size(uxx0)); 
+% % % no way to directly extract interior 
 %   uxx = M \ urh; 
-%   plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0');  % 
-%   plsc = plt_fld(6,uxx  ,x2,y2,'uxx');  % 
+%   plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0',0);  % 
+%   plsc = plt_fld(6,uxx  ,x2,y2,'uxx',0);  % 
 %   disp('error between uxx and uxx0'); 
 %   infer = max(max(abs(uxx - uxx0))); 
 %   disp(infer); 
 %   error('uxx and uxx0'); 
 % % % % % % % % % % % % % % % % % % % % % 
-
+% %   Probably need to get rid of boundary points, otherwise 
+% %   same points computed on both sides 
+% %   Not sure if this is the problem why time stepping is blowing up 
+% %   Wed Mar  9 23:59:47 CST 2016
     for it = 1:Nt          
-  %    RK1 = Euler Explicit  
+% %  RK1 = Euler Explicit  
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
                                    glb_indx,bdry_flg,areax,areay,nhx,nhy);
-  %   Probably need to get rid of boundary points, otherwise 
-  %   same points computed on both sides 
-  %   Not sure if this is the problem why time stepping is blowing up 
-  %   Wed Mar  9 23:59:47 CST 2016
-      u = u + dt.*(M \ urh);  % Euler exp 
+%     M, urh, 
+      k1 = M \ urh;     % Euler exp 
+      u  = u + dt.*k1;  % Euler exp 
+%     error('k1 in 2d'); 
 % % From prev 1D code 
 % %    RK2 
 %         [urh] = lh_pois(u,Mb,Db,Kb,nu,qqt);   
@@ -166,11 +170,11 @@ function [succ,infer] = heat_prim_2d
       er      = u - uex; 
       tsv(it) = t; 
       mxtlu   = norm(uex,Inf); infert(it) = norm(er,Inf)/ mxtlu; 
-      infert(it), 
-      if(ifplt==0)
-%       plsc = plt_fld(4,uex,x2,y2,'uex');  % 
-        plsc = plt_fld(6,u,x2,y2,'u');  % 
-%     if(ifplt && mod(it,ceil(Nt/5))==0)
+      infert(it); 
+      if(ifplt && mod(it,ceil(Nt/4))==0)
+        u; 
+%       plsc = plt_fld(4,uex,x2,y2,'uex',0);  % 
+        plsc = plt_fld(6,u,x2,y2,'u',0);  % 
 %       plx = reshape(x,Nx*Nx*Ne,1); 
 %       plu = reshape(u,Nx*Nx*Ne,1); 
 %       pluex = reshape(uex,Nx*Nx*Ne,1); 
@@ -183,26 +187,26 @@ function [succ,infer] = heat_prim_2d
 %       pause(0.01); hold off;
 %       disp(['max(u) = ' num2str(max(max(u))) ...
 %          ' , min(u) = ' num2str(min(min(u))) ' , istep = ' num2str(it)]);
-      end
+      end 
     end
 
-    if(ifplt)
-      figure(10);hold on;
-      plot(tsv,infert,'-');
-      xlabel('t '); 
-      ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
-      title(['Error vs time']);
-      drawnow ; 
-      hold off;
-    end
+%   if(ifplt)
+%     figure(10);hold on;
+%     semilogy(tsv,infert,'-');
+%     xlabel('t '); 
+%     ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
+%     title(['Error vs time']);
+%     drawnow; 
+%     hold off;
+%   end
     infer = infert(end); % Error at end of time 
     disp(['At end of time T = ',num2str(T),...
     ', Relative Inf norm error = ', num2str(infer)]); 
     succ = true;
 end
-
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
 %------------------------------------------------------
-function [succ] = plt_fld(idfig,u,x2,y2,str) 
+function [succ] = plt_fld(idfig,u,x2,y2,str,ifpause) 
     global Ne Nx 
 % % Plot the solution 
     if(idfig~=0)
@@ -214,7 +218,8 @@ function [succ] = plt_fld(idfig,u,x2,y2,str)
         mesh(x2(:,:,ie),y2(:,:,ie),reshape(u(:,ie),[Nx,Nx])); 
         if(ie==1) hold on;  end; 
     end
-    title(str); drawnow; pause
+    title(str); drawnow; 
+    if(ifpause) pause; end; 
     hold off; 
     succ = true; 
 end
@@ -343,23 +348,23 @@ function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_f
                                         areax,areay,nhx,nhy)
 % Pure central is very bad, modify q* in eval_fu - done
     global Ne Nx
-    eta  = set_eta(Mx,My); he = 1.*eye(4*Nx); % For now eta, he are simply put
+    eta  = set_eta(Mx,My); he = sum(diag(areax(1:Nx,1:Nx))).*eye(4*Nx); 
+%   error('eta?'); 
 % GEOMETRY for 2d, need to work on here - Sat Mar  5 23:19:28 CST 2016
     I = speye(Nx);  
 %   disp('u'); disp(u); 
     Ku =(kron(My,Kx) + kron(Ky,Mx))* u; 
     Ku = -nu*Ku;
-%   disp('kron(My,kx)*u'); disp(kron(My,Kx)*u); 
-%   disp('kron(I,kx)*u'); disp(kron(I,Kx)*u); 
-%   disp('kron(Ky,Mx)*u'); disp(kron(Ky,Mx)*u);  % All zeros 
-%   disp('Ku'); disp(Ku); 
+%   disp('Ku'); disp(max(max(abs(Ku)))); 
 %   disp('nu'); disp(nu); 
 %   error('Check Ku');
     Gtu  = gt_eval(u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
     Gtu = -nu*Gtu;
+%   disp('Gtu'); disp(max(max(abs(Gtu)))); 
 %   disp('Gtu'); disp(Gtu);  %  My bet is on Gtu and Hu 
     Gu   = g_eval (u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
     Gu = -nu*Gu;
+%   disp('Gu'); disp(max(max(abs(Gu)))); 
 %   disp('Gu'); disp(Gu); 
 %   error(' check Gtu and Gu '); 
     M = kron(My,Mx);  % (ly lx)/4 .* Mhat otimes Mhat
@@ -368,7 +373,7 @@ function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_f
 %   error('M \ G + Gt u, is it symmetric?'); 
     Hu = h_eval (eta,he,u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
     Hu = -nu*Hu;
-%   disp('Hu'); disp(Hu);   % Compare to 1D - nonzero values here, zeros there 
+%   disp('Hu'); disp(max(max(abs(Hu))));   % Compare to 1D - nonzero values here, zeros there 
                             % Gonna deal with boundary terms in QQT 
 %   error('all the terms in right hand side '); 
     urhs = Ku - Gtu - Gu + Hu; % urhs = -nu*urhs; 
@@ -459,8 +464,8 @@ function [Hu] = h_eval(eta,he,u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy)
 %   disp('he'); disp(he); 
     const = zeros(size(eta)); % This gets rid of the NaN
     for i = 1:size(eta,1)
-        const(i,i) = 1.; 
-%       const(i,i) = 1.*eta(i,i)./he(i,i); 
+%       const(i,i) = 1.; 
+        const(i,i) = 1.*eta(i,i)./he(i,i); 
     end
 %   disp(const); 
 %   disp(areax); 
@@ -483,10 +488,8 @@ end
 % -- For the one setup 
 function eta = set_eta(Mx,My) 
     global Ne Nx 
-    eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));
-%   [Mm Mp] = full2face_p(repmat(diag(M),1,Ne));
-    % Periodic boundary? 
-%   eta = ctr_flx_0(1./Mm,1./Mp); 
+%   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));
+    eta = 1.*eye(4*Nx)/(Mx(1,1));
 end 
 function [dum,dup] = nhat_mul(dum,dup)
     dum(1,:) = -1.*dum(1,:); 

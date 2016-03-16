@@ -91,6 +91,7 @@ function [succ,infer] = poisson(mth)
       rhs = reshape(rhs,Nx*Ne,1);
       u   = zeros(Nx*Ne,1); 
 %     u   = A \ rhs; 
+      disp(A); disp(rhs); 
       u(1:end-1) = A(1:end-1,1:end-1) \ rhs(1:end-1); u(end) = u(1); 
       if(initflg==3)
 %         u = u - 1.;

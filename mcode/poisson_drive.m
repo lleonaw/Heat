@@ -4,8 +4,8 @@
 %close all; 
 
 global Ne Nx ifplt initflg
-ifplt = false; 
 ifplt = true; 
+ifplt = false; 
 
 mth = 2; % Fidkowski formulation
 mth = 1; % Penalized central flux
@@ -18,14 +18,14 @@ Nx = N + 1;       % Numb of points in each elem.
 Nn  = 8; 
 Nen = 4; 
 ere = zeros(Nen,Nn); plnx = zeros(Nen,Nn); plne = zeros(Nen,Nn);
-for initflg=1:4 % 4
-   for j=1:Nn
+for initflg=2:2 % 4
+   for j=4:4 %Nn
    %  N = j+1; Nx = N + 1;
-      N = 2*j; Nx = N + 1;
+      N = 1*j; Nx = N + 1;
    %  N = 2^j+1; Nx = N + 1;
       for i=1:1%Nen
 %        Ne = i*2;
-         Ne = i;
+         Ne = 2;
          [succ,infer] = poisson(mth); 
          if(succ)
            ere(i,j) = infer; 
@@ -59,16 +59,16 @@ for initflg=1:4 % 4
 end 
 
 %% Various initial conditions 
- figure(9);  
- loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
- loglog(plnsv,eric2,'o-','linewidth',1.5);
- loglog(plnsv,eric3,'o-','linewidth',1.5);
- loglog(plnsv,eric4,'o-','linewidth',1.5);
- loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
- loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
- legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
- xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
- title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
+%figure(9);  
+%loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
+%loglog(plnsv,eric2,'o-','linewidth',1.5);
+%loglog(plnsv,eric3,'o-','linewidth',1.5);
+%loglog(plnsv,eric4,'o-','linewidth',1.5);
+%loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
+%loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
+%legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
+%xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+%title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
 
 % A = load('A.dat'); 
 % disp(['Is A symmetric? 1-Yes, 0-No: ', num2str(issymmetric(A))]);

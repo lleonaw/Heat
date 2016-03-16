@@ -7,10 +7,10 @@
 %clear all; format long; close all; 
 global Ne Nx ifplt initflg T CFL dt
 dt = 1e-5;    % T = 4.e-0; 
-ifplt = true; 
 ifplt = false; 
+ifplt = true; 
 
-T = 4.; 
+T = .32; 
 % Ne = 10;          % Number of elem
 N = 4;            % Poly. order
 Nx = N + 1;       % Numb of points in each elem.
@@ -23,17 +23,17 @@ Nen = 4;
 ere  = zeros(Nen,Nn); plnx = zeros(Nen,Nn); plne = zeros(Nen,Nn);
 ertn = zeros(Ntn,1); dtn  = zeros(Ntn,1); 
 
-for itm=1:Ntn
+for itm=1:1%Ntn
 % RK4 should have a rather big CFL number, totally not seeing that 
 %   lambda \delta t < 2.8, which means huge eigenvalues are present ! 
 %   max CFL for RK4 is 0.15 ! 
-    CFL = 0.3 /(2.^itm);  
+    CFL = 0.001 /(2.^itm);  
 %   CFL = 0.3 /(2.^itm) / 2.; 
     for initflg=2:2 % 4
-       for j=6:6 %Nn
+       for j=3:3 %Nn
        % Use CFL = 0.0125 for polynomial  
-       %  N = j+1; Nx = N + 1;
-          N = 2*j; Nx = N + 1;
+          N = j; Nx = N + 1;
+%         N = 2*j; Nx = N + 1;
 %         N = 2^j; Nx = N + 1;
           for i=1:1%Nen
              Ne = i*2;
@@ -85,15 +85,15 @@ end
 % title('Max pointwise relative error, heat problem, N_e = 2');
 
 % temporal convergence 
-  figure(9);  
-  loglog(dtn,ertn,'o-','linewidth',1.5);hold on;
- %loglog(dtn,1.0*dtn.^(2),'x-','linewidth',1.5); 
-  loglog(dtn,1.0*dtn.^(4),'x-','linewidth',1.5); 
- %legend('Err data','\Delta t^{2}','\Delta t'); 
- %legend('Err data','\Delta t^{2}'); 
-  legend('Err data','\Delta t^{4}'); 
-  xlabel('$\Delta t$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-  title('Max pointwise relative error, heat problem, N_e = 2');
+% figure(9);  
+% loglog(dtn,ertn,'o-','linewidth',1.5);hold on;
+%%loglog(dtn,1.0*dtn.^(2),'x-','linewidth',1.5); 
+% loglog(dtn,1.0*dtn.^(4),'x-','linewidth',1.5); 
+%%legend('Err data','\Delta t^{2}','\Delta t'); 
+%%legend('Err data','\Delta t^{2}'); 
+% legend('Err data','\Delta t^{4}'); 
+% xlabel('$\Delta t$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+% title('Max pointwise relative error, heat problem, N_e = 2');
 
 % Element number 
 %figure(9);  

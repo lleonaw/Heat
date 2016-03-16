@@ -21,3 +21,6 @@ Ne = 2, N = 2^j
 Except for Ne = 2, N = 4, in which case 
 the code blows up. 
 Very weird. 
+
+Thu Mar 10 11:38:13 CST 2016
+1D spectrum comparison between SEM and DGSEM 
