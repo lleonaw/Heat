@@ -5,8 +5,8 @@
 % --- Forward operator (derivative operator) 
 %   . in 2D!   2x2 can work, hard coded 
 % --- 
-function [succ,infer,VL,DL] = heat_prim_2d 
-    global Ne Nx ifplt initflg T CFL dt ifeig iffwd
+function [succ,infer] = heat_prim_2d 
+    global Ne Nx ifplt initflg T CFL dt ifeig 
     global R2 u0 
     N = Nx - 1;       % Num of points in each elem.
     Nf = 4*Nx;        % Num of points on faces for one elem
@@ -105,15 +105,13 @@ function [succ,infer,VL,DL] = heat_prim_2d
     glb_indx = glb_setup(x2,y2);             %  x(nx1,nx1,ne)
     bdry_flg = bdry_setup(x2,y2);            % setup boundary flags - - is not right for 3x3 
     ka = ones(Nx,1);                         % Scalar field 
-%   nu = 0.1.*ones(Nx*Nx,1); nu = diag(nu);  % conductivity 
-    nu = 0.1; 
+    nu = 0.1.*ones(Nx*Nx,1); nu = diag(nu);  % conductivity 
     uxx0 = nu*uxx0;                          % conductivity 
 
     % Time stepping setup 
 %   CFL = 0.1; %   CFL = nu(1,1)*dt/((dx)^2); 
     t  = 0.; dxa = diff(x(1:Nx,1)); dx = min(dxa);
-%   dt = CFL*(dx)^2 /nu(1,1);  % Alright 0.1 is as big as it gets 4 me 
-    dt = CFL*(dx)^2 /nu;  % Alright 0.1 is as big as it gets 4 me 
+    dt = CFL*(dx)^2 /nu(1,1);  % Alright 0.1 is as big as it gets 4 me 
     if(dt>=T)
         error('dt > T, change to a smaller CFL or longer T');
     end
@@ -127,53 +125,26 @@ function [succ,infer,VL,DL] = heat_prim_2d
 
     M = kron(My,Mx);  % (ly lx)/4 .* Mhat otimes Mhat
 % % % % % % % % % % % % % % % % % % % % % 
-%   Find error in forward differentiating operator 
-    if(iffwd)
-        [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
-        urh = - nu*urh; 
-        uxx = zeros(size(uxx0)); 
-        uxx = M \ urh; 
-%       plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0',0);  % 
-%       plsc = plt_fld(6,uxx  ,x2,y2,'uxx',0);  % 
-        disp('- - - - - - - - - - - - - '); 
-        disp('Error between uxx and uxx0'); 
-        infer = max(max(abs(uxx - uxx0))); 
-        disp(infer); 
-    end
-% % % % % % % % % % % % % % % % % % % % % 
-%   Find eigenvalues for the operator inv(Mb) A 
-    if(ifeig)
-% For finding A 
-      A   = zeros(Nx*Nx*Ne,Nx*Nx*Ne);  g = zeros(Nx*Nx*Ne,1); 
-      Ku  = zeros(Nx*Nx*Ne,Nx*Nx*Ne); Hu = zeros(Nx*Nx*Ne,Nx*Nx*Ne); 
-      Gtu = zeros(Nx*Nx*Ne,Nx*Nx*Ne); Gu = zeros(Nx*Nx*Ne,Nx*Nx*Ne);   
-      for i =1:Nx*Nx*Ne
-        g(i) = 1.; gmat = reshape(g,Nx*Nx,Ne);
-        [q,ku,gtu,gu,hu] = lh_pois(gmat,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
-        A(:,i) = reshape(q,Nx*Nx*Ne,1); 
-        Ku(:,i)  = reshape(ku, Nx*Nx*Ne,1); Hu(:,i) = reshape(hu,Nx*Nx*Ne,1);
-        Gtu(:,i) = reshape(gtu,Nx*Nx*Ne,1); Gu(:,i) = reshape(gu,Nx*Nx*Ne,1);
-        g(i) = 0.; 
-      end
-      Ie = sparse(eye(Ne)); Mb = kron(Ie,M); 
-      [VL,DL] = eig(A,full(Mb)); 
-      DL = sort(diag(DL)); 
-      disp('Eigenvalues in DL'); 
-      succ = true; 
-      return 
-    else
-      VL = 0.; DL = 0.; 
-    end
+%   areax, dlx, %   sum(diag(areax(1:Nx,1:Nx))), %   error('area?'); 
+    [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy);
+    uxx = zeros(size(uxx0)); 
+% % % no way to directly extract interior 
+    uxx = M \ urh; 
+%   plsc = plt_fld(7,uxx0 ,x2,y2,'uxx0',0);  % 
+%   plsc = plt_fld(6,uxx  ,x2,y2,'uxx',0);  % 
+    disp('error between uxx and uxx0'); 
+    infer = max(max(abs(uxx - uxx0))); 
+    disp(infer); 
+%   error('uxx and uxx0'); 
 % % % % % % % % % % % % % % % % % % % % % 
 % %   Probably need to get rid of boundary points, otherwise 
 % %   same points computed on both sides 
 % %   Not sure if this is the problem why time stepping is blowing up 
 % %   Wed Mar  9 23:59:47 CST 2016
-    for it = 1:Nt          
+    for it = 1:0*Nt          
 % %  RK1 = Euler Explicit  
 %     [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
 %                                  glb_indx,bdry_flg,areax,areay,nhx,nhy);
-%     urh = - nu*urh; 
 %     k1 = M \ urh;     % Euler exp 
 %     u  = u + dt.*k1;  % Euler exp 
 %     error('k1 in 2d'); 
@@ -185,20 +156,20 @@ function [succ,infer,VL,DL] = heat_prim_2d
 %     u     = 0.5*(u + u1 + dt.*(Mb\ urh));  % Second stage of rk 2
 % %    RK4 
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k1 = M \ urh; % trk = t; 
+                               glb_indx,bdry_flg,areax,areay,nhx,nhy);
+      k1 = M \ urh; % trk = t; 
       u1  = u + 0.5*dt*k1;                                % First stage 
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u1,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k2 = M \ urh; % trk = t; 
+                               glb_indx,bdry_flg,areax,areay,nhx,nhy);
+      k2 = M \ urh; % trk = t; 
       u2  = u + 0.5*dt*k2;                                % First stage 
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u2,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k3 = M \ urh; % trk = t + 0.5*dt; 
+                               glb_indx,bdry_flg,areax,areay,nhx,nhy);
+      k3 = M \ urh; % trk = t + 0.5*dt; 
       u3 = u + 1.0*dt*k3;                                % Thrid stage 
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u3,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k4 = M \ urh; % trk = t + 0.5*dt; 
+                               glb_indx,bdry_flg,areax,areay,nhx,nhy);
+      k4 = M \ urh; % trk = t + 0.5*dt; 
       u  = u + dt*(k1/6. + k2/3. + k3/3. + k4/6.);       % Fourth stage
       t = t + dt;
       if(initflg==2) 
@@ -207,10 +178,11 @@ function [succ,infer,VL,DL] = heat_prim_2d
       er      = u - uex; 
       tsv(it) = t; 
       mxtlu   = norm(uex,Inf); infert(it) = norm(er,Inf)/ mxtlu; 
+      infert(it); 
       if(ifplt && mod(it,ceil(Nt/4))==0)
+        u; 
 %       plsc = plt_fld(4,uex,x2,y2,'uex',0);  % 
         plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-        pause, 
 %       plx = reshape(x,Nx*Nx*Ne,1); 
 %       plu = reshape(u,Nx*Nx*Ne,1); 
 %       pluex = reshape(uex,Nx*Nx*Ne,1); 
@@ -226,11 +198,16 @@ function [succ,infer,VL,DL] = heat_prim_2d
       end 
     end
 
-    if(ifplt)
-      plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-      pause, 
-    end
-    infer = infert(end); % Error at end of time 
+%   if(ifplt)
+%     figure(10);hold on;
+%     semilogy(tsv,infert,'-');
+%     xlabel('t '); 
+%     ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
+%     title(['Error vs time']);
+%     drawnow; 
+%     hold off;
+%   end
+%   infer = infert(end); % Error at end of time 
     disp(['At end of time T = ',num2str(T),...
     ', Relative Inf norm error = ', num2str(infer)]); 
     succ = true;
@@ -367,35 +344,43 @@ function ul = Qu(ug,glb_indx) % COPY global to local
     end
 end
 %------------------------------------------------------
+function flx = ctr_flx_0(fm,fp) % weak form
+    fctr = (fm + fp)/2.;
+    flx  = fctr;  % center flux runs
+end
+function flx = dif_flx(um,up) % weak form
+    flx = um - up;
+end
+%------------------------------------------------------
 function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_flg,...
-                                        areax,areay,nhx,nhy,kstep)
+                                        areax,areay,nhx,nhy)
 % Pure central is very bad, modify q* in eval_fu - done
     global Ne Nx
     eta  = set_eta(Mx,My); he = sum(diag(areax(1:Nx,1:Nx))).*eye(4*Nx); 
-    if(kstep==1) 
-        eta(1,1), 
-    end
-    I = speye(Nx);  % (ly lx)/4 .* Mhat otimes Mhat
 %   error('eta?'); 
+% GEOMETRY for 2d, need to work on here - Sat Mar  5 23:19:28 CST 2016
+    I = speye(Nx);  
+%   disp('u'); disp(u); 
     Ku =(kron(My,Kx) + kron(Ky,Mx))* u; 
-%   Ku = -nu*Ku;
+    Ku = -nu*Ku;
 %   disp('Ku'); disp(max(max(abs(Ku)))); 
 %   disp('nu'); disp(nu); 
 %   error('Check Ku');
     Gtu  = gt_eval(u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
-%   Gtu = -nu*Gtu;
+    Gtu = -nu*Gtu;
 %   disp('Gtu'); disp(max(max(abs(Gtu)))); 
 %   disp('Gtu'); disp(Gtu);  %  My bet is on Gtu and Hu 
     Gu   = g_eval (u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
-%   Gu = -nu*Gu;
+    Gu = -nu*Gu;
 %   disp('Gu'); disp(max(max(abs(Gu)))); 
 %   disp('Gu'); disp(Gu); 
 %   error(' check Gtu and Gu '); 
+    M = kron(My,Mx);  % (ly lx)/4 .* Mhat otimes Mhat
 %   disp('M \ Gtu + Gu'); disp(M\(Gtu+Gu)); 
 %   disp('M \ (Ku - Gtu - Gu)'); disp(M\(Ku - Gtu - Gu));
 %   error('M \ G + Gt u, is it symmetric?'); 
     Hu = h_eval (eta,he,u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy); 
-%   Hu = -nu*Hu;
+    Hu = -nu*Hu;
 %   disp('Hu'); disp(max(max(abs(Hu))));   % Compare to 1D - nonzero values here, zeros there 
                             % Gonna deal with boundary terms in QQT 
 %   error('all the terms in right hand side '); 
@@ -511,15 +496,8 @@ end
 % -- For the one setup 
 function eta = set_eta(Mx,My) 
     global Ne Nx 
-%   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));  % This does not works 
-    eta = 1.*eye(4*Nx)/(Mx(1,1));          % This works 
-%   eta = 1.*eye(4*Nx).*(1./Mx(1,1)*1.12);    % Will this work? 
-    % *1.12 : at the end T = 2 starts showing discontinuities
-    % *1.12 : at the end T = 2 starts showing discontinuities
-%   eta = 0.5*(eye(4*Nx))./(Mx(1,1)*My(1,1)) + 0.5*eye(4*Nx)/(Mx(1,1)); % This breaks 
-%   eta = eye(4*Nx)./(Mx(1,1)^0.5);        % This breaks as well... 
-%   eta = eye(4*Nx)./(Mx(1,1)/2.0);        % This breaks as well... 
-    % Seems only one value works ...  Sun Mar 20 23:52:44 CDT 2016
+%   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));
+    eta = 1.*eye(4*Nx)/(Mx(1,1));
 end 
 function [dum,dup] = nhat_mul(dum,dup)
     dum(1,:) = -1.*dum(1,:); 

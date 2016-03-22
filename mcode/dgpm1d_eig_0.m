@@ -32,17 +32,16 @@ function [succ,infer,VL,DL] = poisson_dgpm_eig
 %     u0 = 1.- 1.*cos(2.*pi.*x); qs = -((pi^2)*4.).*cos(2.*pi.*x);
       u0 = 1.+ 1.*cos(pi.*x); qs = ((pi^2)).*cos(pi.*x);
     end
-
+%
     nu = 1.*ones(Nx,1);  nu = diag(nu);  
 % Copied from inv_vis, for central flux 
     IE = speye(Ne); Ih = speye(N+1); 
     fluxf = 0.*speye(2); fluxf(1,1)=.5; fluxf(end,end)=.5;
-    qqt = kron(IE,fluxf); j=0; m=2; M=size(qqt,1);    % Defined for surface, each block is size 2 
+    qqt = kron(IE,fluxf); j=0; m=2; M=size(qqt,1);    % Defined for surface, each block size 2 
     for e=1:Ne; j=j+m; jp = j+1; if jp>M; jp=1; end;
 %   qqt(j,jp)=.5; qqt(jp,j)=-.5; qqt(jp,jp)=-.5; end; % Seems to have signs(nhat) with it
     qqt(j,jp)=.5; qqt(jp,j)=.5; qqt(jp,jp)=.5; end;   % Use the signless one 
- 
-% Just, amazing. wordless 
+% 
     A   = zeros(Nx*Ne,Nx*Ne);  g = zeros(Nx*Ne,1); 
     Ku  = zeros(Nx*Ne,Nx*Ne); Hu = zeros(Nx*Ne,Nx*Ne); 
     Gtu = zeros(Nx*Ne,Nx*Ne); Gu = zeros(Nx*Ne,Nx*Ne);   
@@ -57,17 +56,21 @@ function [succ,infer,VL,DL] = poisson_dgpm_eig
 
     rhs = Mb*qs; 
     rhs = reshape(rhs,Nx*Ne,1);
-    Iq = eye(Nx*Ne-1); Q=[Iq(1,:);Iq];                  % Periodic bc - Ill-conditioned 
-%   Iq = eye(Nx*Ne-2); Q=[0.*Iq(1,:);Iq;0.*Iq(1,:)];    % Dirichlet bc 
+    Iq = eye(Nx*Ne-1); R=[Iq(1,:);Iq];                  % Periodic bc - Ill-conditioned 
+%   Iq = eye(Nx*Ne-2); R=[0.*Iq(1,:);Iq;0.*Iq(1,:)];    % Dirichlet bc 
 
 %   u = (Q'*A*Q) \ ( Q'*rhs); 
 %   u = Q*u; 
 % Alternate solve, with Operator L 
-    Ie = sparse(eye(Ne)); 
-    L = Q *((Q'*A*Q)\(Q'*(kron(Ie,Mb))*Q))*Q'; 
-    u = L*reshape(qs,Ne*Nx,1); 
+%   Ie = sparse(eye(Ne)); 
+%   L = R *((R'*A*R)\(R'*(kron(Ie,Mb))*R))*R'; 
+%   u = L*reshape(qs,Ne*Nx,1); 
 
-    [VL,DL] = eig(L); DL = sort(diag(DL)); 
+    S = R*((R'*kron(Ie,Mb)*R)\(R'*A*R))*R'; 
+%   [VL,DL] = eig(S); 
+% No boundary mask! 
+    [VL,DL] = eig( A, full(kron(Ie,Mb))); 
+    DL = sort(diag(DL)); 
 
     plu = reshape(u,Nx*Ne,1); pluex = reshape(u0,Nx*Ne,1); 
     if(ifplt)

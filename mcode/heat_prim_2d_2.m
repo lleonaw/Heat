@@ -210,7 +210,6 @@ function [succ,infer,VL,DL] = heat_prim_2d
       if(ifplt && mod(it,ceil(Nt/4))==0)
 %       plsc = plt_fld(4,uex,x2,y2,'uex',0);  % 
         plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-        pause, 
 %       plx = reshape(x,Nx*Nx*Ne,1); 
 %       plu = reshape(u,Nx*Nx*Ne,1); 
 %       pluex = reshape(uex,Nx*Nx*Ne,1); 
@@ -226,10 +225,15 @@ function [succ,infer,VL,DL] = heat_prim_2d
       end 
     end
 
-    if(ifplt)
-      plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-      pause, 
-    end
+%   if(ifplt)
+%     figure(10);hold on;
+%     semilogy(tsv,infert,'-');
+%     xlabel('t '); 
+%     ylabel('$\| u - \tilde{u}\|_{\infty} / \|\tilde{u}\|_{\infty}$','Interpreter','Latex');
+%     title(['Error vs time']);
+%     drawnow; 
+%     hold off;
+%   end
     infer = infert(end); % Error at end of time 
     disp(['At end of time T = ',num2str(T),...
     ', Relative Inf norm error = ', num2str(infer)]); 
@@ -372,9 +376,9 @@ function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_f
 % Pure central is very bad, modify q* in eval_fu - done
     global Ne Nx
     eta  = set_eta(Mx,My); he = sum(diag(areax(1:Nx,1:Nx))).*eye(4*Nx); 
-    if(kstep==1) 
-        eta(1,1), 
-    end
+%   if(kstep==1) 
+%       eta(1,1), 
+%   end
     I = speye(Nx);  % (ly lx)/4 .* Mhat otimes Mhat
 %   error('eta?'); 
     Ku =(kron(My,Kx) + kron(Ky,Mx))* u; 
@@ -511,15 +515,8 @@ end
 % -- For the one setup 
 function eta = set_eta(Mx,My) 
     global Ne Nx 
-%   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));  % This does not works 
-    eta = 1.*eye(4*Nx)/(Mx(1,1));          % This works 
-%   eta = 1.*eye(4*Nx).*(1./Mx(1,1)*1.12);    % Will this work? 
-    % *1.12 : at the end T = 2 starts showing discontinuities
-    % *1.12 : at the end T = 2 starts showing discontinuities
-%   eta = 0.5*(eye(4*Nx))./(Mx(1,1)*My(1,1)) + 0.5*eye(4*Nx)/(Mx(1,1)); % This breaks 
-%   eta = eye(4*Nx)./(Mx(1,1)^0.5);        % This breaks as well... 
-%   eta = eye(4*Nx)./(Mx(1,1)/2.0);        % This breaks as well... 
-    % Seems only one value works ...  Sun Mar 20 23:52:44 CDT 2016
+%   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));
+    eta = 1.*eye(4*Nx)/(Mx(1,1));
 end 
 function [dum,dup] = nhat_mul(dum,dup)
     dum(1,:) = -1.*dum(1,:); 

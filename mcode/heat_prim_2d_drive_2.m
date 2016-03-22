@@ -1,15 +1,14 @@
 %%  Driver for heat_prim_2d.m 
 % To do:
-%   -  Error analysis with varying eta 
-%   -  Eigenvalues  
+%   -  Error analysis 
 % % % % % % % % % % % % % % % % % % % % % %
 
 %clear all; format long; close all; 
 global Ne Nx ifplt initflg T CFL dt ifeig iffwd
 global R2 u0 
 dt = 1e-5;    % T = 4.e-0; 
-ifplt = false; 
 ifplt = true; 
+ifplt = false; 
 iffwd = false; 
 % 
 ifeig = true; 
@@ -19,7 +18,11 @@ if(ifeig)
     mylegend = cell(Nn,1);  % For plotting eig 
 end
 
-T = 2.; N = 2; Nx = N + 1;  % N - Poly. order, Nx - Numb of points in each elem.
+T = 2.; 
+
+N = 2;            % Poly. order
+Nx = N + 1;       % Numb of points in each elem.
+
 Ntn = 4; 
 Nn  = 6; 
 % Nn  = 4;  % 16 is enough... 32 takes a lot of time! ! 
@@ -28,24 +31,22 @@ Nen = 4;          % Number of elem
 ere  = zeros(Nen,Nn); plnx = zeros(Nen,Nn); plne = zeros(Nen,Nn);
 ertn = zeros(Ntn,1); dtn  = zeros(Ntn,1); 
 
-for itm=1:1%Ntn
+for itm=1:1 %Ntn
 % RK4 should have a rather big CFL number, totally not seeing that 
 %   lambda \delta t < 2.8, which means huge eigenvalues are present ! 
 %   max CFL for RK4 is 0.15 ! 
-    CFL = 0.08 /(2.^itm);   % CFL = 0.045 runs, 0.05 does not 
+    CFL = 0.05 /(2.^itm);  
 %   CFL = 0.3 /(2.^itm) / 2.; 
     for initflg=2:2 % 4
-%      for j=1:ceil(Nn)
-       for j=2:2%ceil(Nn)
+       for j=1:ceil(Nn)
+%      for j=4:4%ceil(Nn)
        % Use CFL = 0.0125 for polynomial  
           N = 3*j; Nx = N + 1;
 %         N = j; Nx = N + 1; 
 %         N = 2^j; Nx = N + 1;
           for i=1:1%Nen
-             Ne = (i+2)^2; %        Ne = i;
-             tic; 
+             Ne = (i+1)^2; %        Ne = i;
              [succ,infer,Vdg,Ddg] = heat_prim_2d; 
-             toc; 
              if(succ)
                ere(i,j) = infer; plne(i,j) = Ne; plnx(i,j) = Nx; 
              else 
@@ -83,25 +84,25 @@ end
 
 %% Various initial conditions 
 %figure(9);  
-%%loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
+%loglog(plnsv,eric1,'o-','linewidth',1.5);hold on;
 %loglog(plnsv,eric2,'o-','linewidth',1.5);
-%%loglog(plnsv,eric3,'o-','linewidth',1.5);
-%%loglog(plnsv,eric4,'o-','linewidth',1.5);
-%%loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
-%%loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
-%%legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
-%%xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%%title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
+%loglog(plnsv,eric3,'o-','linewidth',1.5);
+%loglog(plnsv,eric4,'o-','linewidth',1.5);
+%loglog(plnsv,plnsv.^(-2),'x-','linewidth',1.5);
+%loglog(plnsv,exp(-plnsv),'x-','linewidth',1.5);
+%legend('cos(\pi x/2)','sin(\pi x)','cos(\pi x)','1- cos(2 \pi x)','N^{-2}','e^{-N}'); 
+%xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+%title('Pointwise error, Poisson problem, N_e = 2, on [-1,1]');
 
 %% spatial convergence
 %% Fix Ne, varying N 
-%  figure(9);  
-%  semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
-%  semilogy(plnx(1,:),10^3.*exp(-2.5*plnx(1,:)),'x-','linewidth',1.5); 
-%  legend('Err data','C^{-N}'); 
-%  xlabel('$N_x$','Interpreter','Latex'); 
-%  ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex');
-%  title(['Error at T_{final}, u_t + \nu u_xx = 0., u_0 = sin(\pi x + \phi), \phi = 0, \eta = 1/M_{1D}, N_e = ',num2str(Ne)]);
+   figure(9);  
+   semilogy(plnx(1,:),ere(1,:),'o-','linewidth',1.5);hold on;
+   semilogy(plnx(1,:),10^3.*exp(-2.5*plnx(1,:)),'x-','linewidth',1.5); 
+   legend('Err data','C^{-N}'); 
+   xlabel('$N_x$','Interpreter','Latex'); 
+   ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex');
+   title(['Error at T_{final}, u_t + \nu u_xx = 0., u_0 = sin(\pi x + \phi), \phi = 0, \eta = 1/M_{1D}, N_e = ',num2str(Ne)]);
   %title('Max pointwise relative error, heat problem, N_e = 2');
 %  title(['Error for eval. u_{xx}, u = sin(\pi x + \phi), \phi = 0, N_e = ',num2str(Ne)]);
 

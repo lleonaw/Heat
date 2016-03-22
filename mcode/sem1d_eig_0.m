@@ -52,12 +52,12 @@ function [succ,infer,VL,DL] = poisson_sem_eig
     end
 
     Ie = sparse(eye(Ne)); 
-    Kb=R*(kron(Ie,Kl))*P;                   % Stiffness matrix
-    Mb=R*(kron(Ie,Ml))*P;                   % Mass matrix
+    Kb = R*(kron(Ie,Kl))*P;                   % Stiffness matrix
+    Mb = R*(kron(Ie,Ml))*P;                   % Mass matrix
 
     Iq = eye(N*Ne); Q=[Iq(1,:);Iq];                    % Periodic bc 
 %   Iq = eye(N*Ne-1); Q=[0.*Iq(1,:);Iq;0.*Iq(1,:)];    % Dirichlet bc 
-    K = Q'*Kb*Q; M = Q'*Mb*Q;          % Apply bc 
+    K  = Q'*Kb*Q; M = Q'*Mb*Q;          % Apply bc 
 %   disp(Kb); disp(P); disp(K); 
 %   disp(Nx); disp(Ne); 
 
@@ -68,11 +68,19 @@ function [succ,infer,VL,DL] = poisson_sem_eig
                  % Looks ok for dircichlet 
 
 % Alternate 
-    L = Q*( K \ (M * Q') ) ; 
-    u = L*qs; 
+%   L = Q*( K \ (M * Q') ) ; 
+%   u = L*qs; 
 
-    S = Q*( M \ K ) * Q';
-    [VL, DL] = eig(S); 
+    S = Q*( M \ K ) * Q';  % Not inv(K) M 
+%   [VL, DL] = eig(S); 
+
+%  periodicity is more like connectivity rather than boundary condition 
+    M = full(M); 
+    [VL, DL] = eig(K,M); 
+%   [VL, DL] = eig(Kb,Mb); 
+    idl = find(1e-8<abs(diag(DL)) & abs(diag(DL)) <3.), 
+    size(x),size(VL(:,idl)),
+    plot(x,Q*VL(:,idl)); pause 
     DL = sort(diag(DL)); 
 
     infer = 8.88e20; 

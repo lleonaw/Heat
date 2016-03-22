@@ -24,3 +24,11 @@ Very weird.
 
 Thu Mar 10 11:38:13 CST 2016
 1D spectrum comparison between SEM and DGSEM 
+
+Thu Mar 17 11:44:54 CDT 2016
+OVERHAUL:
+  - Only interested in timestepping operator
+  - Eigenvalues problems are for inv(B) K
+  - Combine eig code back into time-stepping code, make sure it's the same thing
+  - 2D eig 
+

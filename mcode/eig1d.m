@@ -1,4 +1,4 @@
-%%  Driver for poisson_dgpm_eig.m, poisson_sem_eig.m
+%%  Driver for dgpm1d_eig.m, sem1d_eig.m
 % To do:
 %   -. Plot spectrum 
 % % % % % % % % % % % % % % % % % % % % % %
@@ -30,16 +30,17 @@ ertn = zeros(Ntn,1); dtn  = zeros(Ntn,1);
 
 if(ifeig)
     figure(43);
-%   mylegend = cell(2*Nn,1);  % For plotting eig 
+    mylegend = cell(2*Nn,1);  % For plotting eig 
 end
 for initflg=2:2 % 4
    disp(['Init flg = ',num2str(initflg)]); 
    for j=1:Nn
-      N = 2^j; Nx = N + 1;
+%     N = 2^j; Nx = N + 1;
+      N = 3*j; Nx = N + 1;
       for i=1:1%Nen
          Ne = (i+1)^2;
          if(ifsem)
-             [succ,infer,VL,se_DL] = poisson_sem_eig; 
+             [succ,infer,se_VL,se_DL] = sem1d_eig; 
              if(succ)
                se_ere(i,j) = infer; 
                se_plne(i,j) = Ne; 
@@ -49,7 +50,7 @@ for initflg=2:2 % 4
              end 
          end
          if(ifdgm)
-             [succ,infer,VL,dg_DL] = poisson_dgpm_eig;
+             [succ,infer,dg_VL,dg_DL] = dgpm1d_eig;
              if(succ)
                dg_ere(i,j) = infer; 
                dg_plne(i,j) = Ne; 
@@ -60,13 +61,18 @@ for initflg=2:2 % 4
          end
       end 
       if(ifeig)
-          disp(['For SE, # of eigs is ',num2str(size(se_DL)),' , max(D) = ',num2str(max(se_DL)),' , min(D) = ',num2str(min(se_DL))]); 
-          disp(['For DG, # of eigs is ',num2str(size(dg_DL)),' , max(D) = ',num2str(max(dg_DL)),' , min(D) = ',num2str(min(dg_DL))]); 
-        % plot(se_DL,'x-'); hold on;  % Both se_DL and dg_DL have zero values, which will not show in a semilogy plot
-        % plot(dg_DL,'o-'); 
-          semilogy(se_DL,'x-'); if(j==1) hold on; end;
-        % semilogy(se_DL_shft,'^-'); 
-          semilogy(dg_DL,'o-'); 
+          if(ifsem)
+              disp(['For SE, # of eigs is ',num2str(size(se_DL)),' , max(D) = ',num2str(max(se_DL)),' , min(D) = ',num2str(min(se_DL))]); 
+              se_DL(1:3), 
+          end
+          if(ifdgm)
+              disp(['For DG, # of eigs is ',num2str(size(dg_DL)),' , max(D) = ',num2str(max(dg_DL)),' , min(D) = ',num2str(min(dg_DL))]); 
+              dg_DL(1:3),
+          end
+          plot(se_DL,'x-'); hold on;  % Both se_DL and dg_DL have zero values, which will not show in a semilogy plot
+          plot(dg_DL,'o-'); 
+%         semilogy(se_DL,'x-'); if(j==1) hold on; end;
+%         semilogy(dg_DL,'o-'); 
           mylegend{2*j-1}=strcat('SEM, N = ',num2str(N));
           mylegend{2*j  }=strcat('DGM, N = ',num2str(N));
 %         legend('SEM','DGM','location','northwest'); 
@@ -74,6 +80,7 @@ for initflg=2:2 % 4
    end 
 end 
 if(ifeig)
+%   mylegend;
     legend(mylegend,'location','southeast','Fontsize',15);
     xlabel('k','fontsize',18); ylabel('\lambda','fontsize',18); 
     title(['Eig values of SE and DG, Ne = ',num2str(Ne)],'fontsize',18); 
@@ -92,24 +99,24 @@ end
 
 %% spatial convergence
 %% Fix Ne, varying N 
-%if(ifsem)
-%  figure(10+9);  
-%  semilogy(se_plnx(1,:),se_ere(1,:),'o-','linewidth',1.5);hold on;
-%  semilogy(se_plnx(1,:),exp(-3*plnx(1,:)),'x-','linewidth',1.5); 
-%  legend('Err data','e^{-N}'); 
-% %legend('Err data','N^{-2}'); 
-%  xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%  title('Max pointwise relative error, poisson, SEM, N_e = 2');
-%end
-%if(ifdgm)
-%  figure(20+9);  
-%  semilogy(dg_plnx(1,:),dg_ere(1,:),'o-','linewidth',1.5);hold on;
-%  semilogy(dg_plnx(1,:),exp(-3*plnx(1,:)),'x-','linewidth',1.5); 
-%  legend('Err data','e^{-N}'); 
-% %legend('Err data','N^{-2}'); 
-%  xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%  title('Max pointwise relative error, poisson, DG, N_e = 2');
-%end
+ if(ifsem)
+   figure(10+9);  
+   semilogy(se_plnx(1,:),se_ere(1,:),'o-','linewidth',1.5);hold on;
+   semilogy(se_plnx(1,:),exp(-3*se_plnx(1,:)),'x-','linewidth',1.5); 
+   legend('Err data','e^{-N}'); 
+  %legend('Err data','N^{-2}'); 
+   xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+   title('Max pointwise relative error, poisson, SEM, N_e = 2');
+ end
+ if(ifdgm)
+   figure(20+9);  
+   semilogy(dg_plnx(1,:),dg_ere(1,:),'o-','linewidth',1.5);hold on;
+   semilogy(dg_plnx(1,:),exp(-3*dg_plnx(1,:)),'x-','linewidth',1.5); 
+   legend('Err data','e^{-N}'); 
+  %legend('Err data','N^{-2}'); 
+   xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
+   title('Max pointwise relative error, poisson, DG, N_e = 2');
+ end
 
 % temporal convergence 
 % figure(9);  
