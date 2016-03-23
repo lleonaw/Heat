@@ -210,25 +210,14 @@ function [succ,infer,VL,DL] = heat_prim_2d
       if(ifplt && mod(it,ceil(Nt/4))==0)
 %       plsc = plt_fld(4,uex,x2,y2,'uex',0);  % 
         plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-        pause, 
-%       plx = reshape(x,Nx*Nx*Ne,1); 
-%       plu = reshape(u,Nx*Nx*Ne,1); 
-%       pluex = reshape(uex,Nx*Nx*Ne,1); 
-%       figure(initflg);hold on;
-%       xlim([-1. 1.]);
-%       plot(plx,plu,'rx-'); plot(plx,pluex,'-');
-%       xlabel('-- x --'); ylabel('-- u --');
-%%      legend('Numerical','Exact');
-%       title(['solution at time t = ' num2str(t) ]); drawnow
-%       pause(0.01); hold off;
-%       disp(['max(u) = ' num2str(max(max(u))) ...
-%          ' , min(u) = ' num2str(min(min(u))) ' , istep = ' num2str(it)]);
+        pause(0.01); 
       end 
     end
 
     if(ifplt)
       plsc = plt_fld(6,u,x2,y2,'u',0);  % 
-      pause, 
+      pause(0.01); 
+      figure; plot(tsv,infert,'o-','linewidth',2.0); 
     end
     infer = infert(end); % Error at end of time 
     disp(['At end of time T = ',num2str(T),...
@@ -512,14 +501,22 @@ end
 function eta = set_eta(Mx,My) 
     global Ne Nx 
 %   eta = 1.*eye(4*Nx)/(Mx(1,1)*My(1,1));  % This does not works 
-    eta = 1.*eye(4*Nx)/(Mx(1,1));          % This works 
-%   eta = 1.*eye(4*Nx).*(1./Mx(1,1)*1.12);    % Will this work? 
-    % *1.12 : at the end T = 2 starts showing discontinuities
-    % *1.12 : at the end T = 2 starts showing discontinuities
-%   eta = 0.5*(eye(4*Nx))./(Mx(1,1)*My(1,1)) + 0.5*eye(4*Nx)/(Mx(1,1)); % This breaks 
-%   eta = eye(4*Nx)./(Mx(1,1)^0.5);        % This breaks as well... 
+%   eta = 1.*eye(4*Nx)/(Mx(1,1));          % This works 
+    eta = 1.00*eye(4*Nx).*(1./Mx(1,1));    % Will this work? 
+    % 0.10*: blows up before finish
+    % 0.25*: blows up before finish
+    % 0.30*: starts to blow up 
+    % 0.32*: at T = 2, er = 1.662e-4
+    % 0.35*: at T = 2, er = 3.465e-5
+    % 0.40*: at T = 2, er = 1.493e-5
+    % 0.50*: at T = 2, er = 6.983e-6
+    % 0.90*: at T = 2, er = 2.232e-6
+    % 1.00*: at T = 2, er = 1.907e-6
+    % 1.10*: at T = 2, er = 1.665e-6
+    % 1.11*: at T = 2, er = 1.644e-6
+    % 1.12*: at T = 2, er = 0.1506, starts showing discontinuities
+    % 1.12*: blows up before finish
 %   eta = eye(4*Nx)./(Mx(1,1)/2.0);        % This breaks as well... 
-    % Seems only one value works ...  Sun Mar 20 23:52:44 CDT 2016
 end 
 function [dum,dup] = nhat_mul(dum,dup)
     dum(1,:) = -1.*dum(1,:); 

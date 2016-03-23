@@ -38,11 +38,11 @@ for itm=1:1%Ntn
 %      for j=1:ceil(Nn)
        for j=2:2%ceil(Nn)
        % Use CFL = 0.0125 for polynomial  
-          N = 3*j; Nx = N + 1;
+          N = 2*(j-1); Nx = N + 1;
 %         N = j; Nx = N + 1; 
 %         N = 2^j; Nx = N + 1;
           for i=1:1%Nen
-             Ne = (i+2)^2; %        Ne = i;
+             Ne = (i+3)^2; %        Ne = i;
              tic; 
              [succ,infer,Vdg,Ddg] = heat_prim_2d; 
              toc; 

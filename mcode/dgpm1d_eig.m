@@ -3,10 +3,11 @@
 %  Explicit scheme, SSP-RK2
 %  New primal form formulation, refer to heatwriteup/writeup/heat.pdf
 % --- 
-%   Sat Mar 12 21:37:38 CST 2016
+%   Tue Mar 22 13:42:54 CDT 2016
 %   . Spectrum of this thing 
+%   . Condition number for stiffness matrix K, and operator 
 % --- 
-function [succ,infer,VL,DL] = dgpm1d_eig
+function [succ,infer,VA,DA,VL,DL] = dgpm1d_eig
     global Ne Nx ifplt initflg T CFL dt
     N = Nx - 1;       % Numb of points in each elem.
     infer = 2e20; 
@@ -41,8 +42,6 @@ function [succ,infer,VL,DL] = dgpm1d_eig
     for e=1:Ne; j=j+m; jp = j+1; if jp>M; jp=1; end;
 %   qqt(j,jp)=.5; qqt(jp,j)=-.5; qqt(jp,jp)=-.5; end; % Seems to have signs(nhat) with it
     qqt(j,jp)=.5; qqt(jp,j)=.5; qqt(jp,jp)=.5; end;   % Use the signless one 
-%   qqt, spy(qqt) ,
-%   pause 
 %  For finding A 
     A   = zeros(Nx*Ne,Nx*Ne);  g = zeros(Nx*Ne,1); 
     Ku  = zeros(Nx*Ne,Nx*Ne); Hu = zeros(Nx*Ne,Nx*Ne); 
@@ -59,23 +58,14 @@ function [succ,infer,VL,DL] = dgpm1d_eig
     rhs = Mb*qs; 
     rhs = reshape(rhs,Nx*Ne,1);
     Iq = eye(Nx*Ne-1); R=[Iq(1,:);Iq];                  % Periodic bc - Ill-conditioned 
-%   Iq = eye(Nx*Ne-2); R=[0.*Iq(1,:);Iq;0.*Iq(1,:)];    % Dirichlet bc 
-
-% Alternate solve, with Operator L 
-%   L = R *((R'*A*R)\(R'*(kron(Ie,Mb))*R))*R'; 
-%   u = L*reshape(qs,Ne*Nx,1); 
-%
-%   S = R*((R'*kron(Ie,Mb)*R)\(R'*A*R))*R'; 
-%   [VL,DL] = eig(S); 
 % No boundary mask for DG 
-%
     Ie = sparse(eye(Ne)); 
-    [VL,DL] = eig( A, full(kron(Ie,Mb))); 
+    [VA,DA] = eig(A);                       % For stiffness matrix 
+    DA = sort(diag(DA)); 
+    [VL,DL] = eig( A, full(kron(Ie,Mb)));   % For derivative operator
     DL = sort(diag(DL)); 
 %
     uxx0 = pi^2*u0; 
-%   size(u0),
-%   size(A),
     uxx  = inv(kron(Ie,Mb))*A*(reshape(u0,[],1));
     pluex = reshape(uxx0,Nx*Ne,1); 
     infer = norm(pluex-uxx,Inf); 
@@ -101,9 +91,6 @@ function flx = ctr_flx_0(fm,fp) % weak form
     fctr = (fm + fp)/2.;
     flx  = fctr;  % center flux runs
 end
-function flx = dif_flx(um,up) % weak form
-    flx = um - up;
-end
 %------------------------------------------------------
 function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,M,D,K,nu,qqt) 
 % Pure central is very bad, modify q* in eval_fu - done
@@ -126,9 +113,6 @@ function [Gtu] = gt_eval(D,u,qqt)
     usvm       = um;                % save u- 
     % Approach 1 - this works, gonna keep using it 
     ufcr = qqt*reshape(um,2*Ne,1);
-    % Approach 2 
-%   up         = bc_p(um,up);
-%   ufcr       = ctr_flx_0(um,up);  % (u- + u+)/2 
 
     ufm        = usvm - reshape(ufcr,2,Ne);       % u- - (u- + u+)/2 
     [ufm,up]   = nhat_mul(ufm,up);  % nhat (I-0.5QQ') R u 
@@ -154,14 +138,6 @@ function [Hu] = h_eval(eta,he,u,qqt)
     Huf     = eta.*Huf./he; 
     Hu      = face2full(Huf);     % R^T 
 end 
-function [qp] = bc_p(qp,qm)    
-% Periodic 
-    global Ne 
-%   qp(1,1)  =  2.*qm(1,1);
-%   qp(2,Ne) =  2.*qm(2,Ne); 
-    qp(1,1)  =  qm(2,Ne);
-    qp(2,Ne) =  qm(1,1); 
-end
 % -- For the one setup 
 function eta = set_eta(M) 
     global Ne Nx 
@@ -226,4 +202,4 @@ function [vm,vp] = full2face_p(v) % Assumes periodic boundary conditions
         vp(2,1) = v(1,1);
     end
 end
-%%
+% % % % % % % % % % % % % % % % % % % % % %

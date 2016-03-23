@@ -1,6 +1,6 @@
 %  From bur_sp, to do poisson with sem 
 %  This code is for spectral (element) solution 
-function [succ,infer,VL,DL] = sem1d_eig
+function [succ,infer,VK,DK,VL,DL] = sem1d_eig
     global Ne Nx ifplt initflg T CFL dt
     N = Nx - 1; 
     [Kh,Mh,Ch,Dh,z,w] =  semhat(N);
@@ -35,11 +35,7 @@ function [succ,infer,VL,DL] = sem1d_eig
           end
         end 
     end
-%   Qx, xl, 
-%   size(Qx),
-%   size(xl)
     xw = Qx'*xl; x = xw;
-
     nu = 1.*ones(Nx,1);  nu = diag(nu); 
 % % Exact solution
     if(initflg==1)     % Init Case 1  
@@ -67,9 +63,6 @@ function [succ,infer,VL,DL] = sem1d_eig
     K  = Qr'*kron(Ie,Kl)*Qr; 
     M  = Qr'*kron(Ie,Ml)*Qr;
 
-%   disp(Kb); disp(P); disp(K); 
-%   disp(Nx); disp(Ne); 
-
 %   disp(size(u0)); disp(size(K)); disp(size(P)); 
 %   u = 0.*u0(2:end);  % u n-1 = u0 = initial , size of u is N, interior
 %   u = K \ (M * R'*qs); 
@@ -78,19 +71,15 @@ function [succ,infer,VL,DL] = sem1d_eig
 
 %  periodicity is more like connectivity rather than boundary condition 
 %   K, M = full(M); 
+    [VK, DK] = eig(K);    % Stiffness matrix 
+    DK = sort(diag(DK)); 
     [VL, DL] = eig(K,M);  % No periodic mask ....  %   [VL, DL] = eig(Kb,Mb); 
 %   idl = find( abs(diag(DL)) <12. & abs(diag(DL)) >9.); plot(P'*x,VL(:,idl)); % pause 
-%   size(x),VL(:,idl),
-%   size(P'*x), 
 %   plot(x,VL(:,idl)); % pause 
     DL = sort(diag(DL)); 
 
     infer = 8.88e20; 
     uxx0 = pi^2*u0; 
-%   size(u0),
-%   size(Q), 
-%   size(K),
-%   size(P), 
     uxx  = inv(M)*K*(P'*u0); 
     infer = norm(uxx0-P*uxx,Inf); 
     disp(['SEM :: Error in u_{xx} = ', num2str(infer)...
