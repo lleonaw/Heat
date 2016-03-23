@@ -1,0 +1,260 @@
+c-----------------------------------------------------------------------
+c
+c  User specified routines:
+c
+c     - boundary conditions
+c     - initial conditions
+c     - variable properties
+c     - forcing function for fluid (f)
+c     - forcing function for passive scalar (q)
+c     - general purpose routine for checking errors etc.
+c
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,iel)
+      include 'SIZE'
+c     include 'TSTEP'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+      udiff =0.
+      utrans=0.
+      return
+      end
+c
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+c
+      FFX = 0.0
+      FFY = 0.0
+      FFZ = 0.0
+      return
+      end
+c
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+      QVOL   = 0.0
+      SOURCE = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+
+      if(ifhedg) then 
+        call dg_heat
+      else 
+        call dg_flow
+      endif
+      call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+      ux=1.0
+      uy=0.0
+      uz=0.0
+      temp=0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+      common /isencst/   beta, xctr, yctr
+c
+      ux = 0.
+      uy = 0.
+      uz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      integer nt, iont 
+      logical ifdt, ifdx
+
+      ifhedg = .true.   ! for heat problem with dg 
+      ifdt   = .false.   ! temporal convergence 
+      ifdx   = .false.   ! spatial convergence 
+      one = 1.
+      pi  = 4.*atan(one)
+      dt     = one/10000.
+      tfinal = 2.      ! run to the same final time 
+      nsteps = int(tfinal/dt) 
+      iostep = int(nsteps/20) 
+      dt     = real(tfinal/nsteps) 
+      param(11) = -nsteps  ! lock nsteps 
+      param(12) = -dt      ! lock dt 
+      param(13) = -iostep  ! lock iostep 
+      write(6,*) 'nt',nsteps,'dt',dt,'iont',iostep
+c     write(6,*) 'p11',param(11),'dt',param(12),'iont',param(13)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+
+      xmin = -1.
+      xmax = 1.
+      call rescale_x(xm1,xmin,xmax)  ! Put geometry on [-1:1] x [-1:1]
+      call rescale_x(ym1,xmin,xmax)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Heat boundary routines 
+c-----------------------------------------------------------------------
+      subroutine userbc_t(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+     
+c     write(6,*) 'Heat Dirichlet boundary condition ' 
+      tem = 0.0            ! Temperature at T / t boundary 
+c     call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc_f(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+
+c Temperature at F / f boundary, dTdn three components? 
+      write(6,*) 'Heat Neumann boundary condition , eval heat flux?' 
+      call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric_ht(ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer iel
+
+c     tem = cos(pi*x/2.) * cos(pi*y/2.)
+c     tem = sin(pi*x)
+      call exc_pnt(tem) 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_fld(tex)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      real    tex(lx1,ly1,lz1,lelt) 
+      integer ix, iy, iz, e 
+
+      do e = 1,nelt
+      do iz=1,lz1
+      do iy=1,ly1
+      do ix=1,lx1
+        call nekasgn(ix,iy,iz,e)
+        call exc_pnt(tex(ix,iy,iz,e))
+      enddo 
+      enddo 
+      enddo 
+      enddo 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_pnt(tmper)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      real    tmper   ! x, y are in NEKUSE 
+      
+c     tmper = exp(-nu*pi*pi*time/4.)*cos(pi*x/2.)*cos(pi*y/2.) ! not P
+      tmper = exp(-nu*pi*pi*time)*sin(pi*x) 
+c     tmper = exp(-nu*pi*pi*time)*sin(pi*y) 
+
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Flow boundary routines, need to update previous 
+c----- userbc_f where I used f as the dirichlet condition for flow 
+c-----------------------------------------------------------------------
+      subroutine userbc_v(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+
+      if(abs(x+2.) .le. 1.e-8) then
+          rux = 0.1*rho ! u = 0.1, c = 1. 
+      else  
+          rux = 0.
+      endif
+      rho = gama
+      ruy = 0.0
+      ruz = 0.0
+      enr = 1./(gama-1.) + .5*(rux*rux + ruy*ruy + ruz*ruz)/rho
+      ! pressure kept at one 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric_fl(ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer iel
+
+      rho = gama
+      enr = 1.0/(gama-1.)
+      rux = 0.
+      ruy = 0.
+      ruz = 0.
+      pp  = (gama-1.)*(enr - .5*(rux*rux + ruy*ruy + ruz*ruz)/rho ) ! = 1 
+      return
+      end
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c automatically added by makenek
+      subroutine usrsetvert(glo_num,nel,nx,ny,nz) ! to modify glo_num
+      integer*8 glo_num(1)
+      return
+      end
+c-----------------------------------------------------------------------
+      include 'dgf3.f'
+
