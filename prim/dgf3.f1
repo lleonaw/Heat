@@ -8772,7 +8772,7 @@ c        if(mod(kstep,1).eq.0) then
              call sub3(terr,tep,thex,n)  ! abs error - relative?
              temx = glamax(thex,n)
              temx = 1./temx
-c            write(6,*) 'temx', temx,' ,kstep',kstep
+             write(6,*) 'temx', temx,' ,kstep',kstep
              call cmult(terr,temx,n)      ! relative error 
              call print_terr  (terr,kstep,time,dt,nx1) 
 
@@ -8816,7 +8816,7 @@ c
         write(6,*) 'o------------------------------------------------o'
         write(6,*) '| Time-stepper order is           ', tmstpp
         write(6,*) 'o------------------------------------------------o'
-        write(6,*) '| Flux type is ( 1-Ctr, 2-SIPG)   ', htflx
+        write(6,*) '| Flux type is ( 1 - Ctr,       ) ', htflx
         write(6,*) 'o------------------------------------------------o'
       endif
 
@@ -8880,7 +8880,7 @@ c-----------------------------------------------------------------------
 c-----------------------------------------------------------------------
 c----- Copied from induct.f, subroutine compute_cfl 
 c--------------------------------------------------------------------
-      subroutine ht_cfl(cfl,nu,dt)  ! ! compute diffusion cfl!NOT RIGHT 
+      subroutine ht_cfl(cfl,nu,dt)  ! ! compute diffusion cfl 
 c
 c     Given kinematic viscosity nu, compute cfl = nu/dx^2 
 c
@@ -8905,7 +8905,7 @@ c
 c
       if (icalld.eq.0) then
          icalld=1
-         call getdr(dri,zgm1(1,1),nx1) ! inverse dr 
+         call getdr(dri,zgm1(1,1),nx1)
          call getdr(dsi,zgm1(1,2),ny1)
          if (if3d) call getdr(dti,zgm1(1,3),nz1)
       endif
@@ -8921,19 +8921,9 @@ c
             do i=1,nx1
                l = l+1
 
-               ur = ( 1.*rxm1(i,j,k,e)
-     $            +   1.*rym1(i,j,k,e)
-     $            +   1.*rzm1(i,j,k,e) ) * jacmi(l,1)
-               us = ( 1.*sxm1(i,j,k,e)
-     $            +   1.*sym1(i,j,k,e)
-     $            +   1.*szm1(i,j,k,e) ) * jacmi(l,1)
-               ut = ( 1.*txm1(i,j,k,e)
-     $            +   1.*tym1(i,j,k,e)
-     $            +   1.*tzm1(i,j,k,e) ) * jacmi(l,1)
-
-               cflr = abs(dt*nu*(ur*dri(i))**2)  !! 
-               cfls = abs(dt*nu*(us*dsi(j))**2)  !! 
-               cflt = abs(dt*nu*(ut*dti(k))**2)  !! 
+               cflr = abs(dt*nu/(dri(i)**2))  !! 
+               cfls = abs(dt*nu/(dsi(j)**2))  !! 
+               cflt = abs(dt*nu/(dti(k)**2))  !! 
 
                cflm = cflr + cfls + cflt 
                cfl  = max(cfl,cflm)
@@ -8951,13 +8941,8 @@ c
             do i=1,nx1
                l = l+1
 
-               ur = ( 1.*rxm1(i,j,1,e)
-     $            +   1.*rym1(i,j,1,e) ) * jacmi(l,1)
-               us = ( 1.*sxm1(i,j,1,e)
-     $            +   1.*sym1(i,j,1,e) ) * jacmi(l,1)
-
-               cflr = abs(dt*nu*(ur*dri(i))**2)  !! 
-               cfls = abs(dt*nu*(us*dsi(j))**2)  !! 
+               cflr = abs(dt*nu/(dri(i)**2))  !! 
+               cfls = abs(dt*nu/(dsi(j)**2))  !! 
 
                cflm = cflr + cfls 
                cfl  = max(cfl,cflm)
@@ -9147,6 +9132,7 @@ c
       n  = nx1*ny1*nz1*nelt
       nf = nx1*nz1*2*ndim*nelt
 c   
+c     write(6,*) ' 0 .'
       call iku (ku)      ! + grad v \cdot grad u    ! 
 c     write(6,*) ' 1 .'
 c   
@@ -9154,7 +9140,7 @@ c
 c     write(6,*) ' 2 .'
 c     
       call igu (gu)      ! - [v] \cdot grad u       ! 
-c     write(6,*) ' 3 .'  
+c     write(6,*) ' 3 .'
 c     
 c         gu is missing factor of 4 
 c        gtu prbbly missing that as well
@@ -9172,8 +9158,8 @@ c     write(6,*) 'before summing them'
       call chsign(gu,n)        !
       call add2  (rhs,gu,n)    !
 c                              !
-      call chsign(rhs,n)       ! - sign
-      call cmult (rhs,nu,n)    ! everything times nu 
+      call chsign(rhs,n)       !
+      call cmult (rhs,nu,n)    !
 c
       call invbf (rhs,rhs)     !
 c     write(6,*) 'check everythin'
@@ -9334,8 +9320,7 @@ c
       parameter (lxyz=lx1*ly1*lz1)
       real ux(lxyz,1),uy(lxyz,1),uz(lxyz,1),u(lxyz,1)
 
-c     common /ctmp1/ ur(lxyz),us(lxyz),ut(lxyz),tmp(lxyz)
-      real ur(lxyz),us(lxyz),ut(lxyz),tmp(lxyz)
+      common /ctmp1/ ur(lxyz),us(lxyz),ut(lxyz),tmp(lxyz)
 
       integer e
 
@@ -9365,7 +9350,7 @@ c     common /ctmp1/ ur(lxyz),us(lxyz),ut(lxyz),tmp(lxyz)
                us(i) =jacmi(i,e)*(ux(i,e)*sxm1(i,1,1,e)
      $                          + uy(i,e)*sym1(i,1,1,e) )
             enddo
-            call local_grad2_t(u,ur,us,N,e,dxm1,dytm1,tmp)
+            call local_grad2_t(u,ur,us,u,N,e,dxm1,dytm1,tmp)
          endif
       enddo
 c
@@ -9387,17 +9372,18 @@ c         . gu
       real     dvgf(lf), dvsv(lf)     ! div \cdot grad u, on surface
       real     gu  (le,lelt)         ! second index for dimension 
       real     h1(le,lelt), h2(le,lelt) 
-      integer  e, n, npl, nf, f, i, k, idm
+      integer  e, n, npl, nf, f, i, k
 c
       n  = nx1*ny1*nz1*nelt
       nf = nx1*nz1*2*ndim*nelt
       nfaces=2*ndim
       nxz=nx1*nz1
       npl = nx1 - 1
+c
 c     
 c     Src: . navier5.f : local_grad3 
 c   . grad u 
-c    . Approach 1 - this works ? NO! y derivative not right 
+c    . Approach 1 - this works 
       call gradm1(grdu(1,1,1),grdu(1,1,2),grdu(1,1,3),tmtp) 
 c    . Approach 2 
 c     do e=1,nelt 
@@ -9468,12 +9454,12 @@ c
       n  = nx1*ny1*nz1*nelt
       nfaces=2*ndim
       nxz=nx1*nz1
+      npl = nx1 - 1
       nf = nx1*nz1*2*ndim*nelt
 c     
-c   . Set eta and h ! Yep this awkward, but seems to work 
-      tmpw = 1./sqrt(bm1(1,1,1,1)) 
-c     write(6,*) 'bm1 (1) ', bm1(1,1,1,1), ', tmpw', tmpw
-c     stop 
+c   . Set eta and h 
+      tmpw = 1./bm1(1,1,1,1) 
+c     write(6,*) 'bm1 (1) ', bm1(1,1,1,1) 
       call rone (eta,nf) 
       call cmult(eta,tmpw,nf) 
 

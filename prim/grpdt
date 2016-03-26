@@ -1,0 +1,7 @@
+#
+#
+for i in `seq 1 7`; do
+#   echo $i
+    grep -A1 'max error' cdt$i.log | tail -1 
+done
+

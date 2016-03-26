@@ -1,0 +1,20 @@
+
+# Run case c, for fixed dt, several N values
+# makenek0: no debug flag, supposed to run faster; however it may run in parallel 
+# and could be a problem, cz system can't find openmpi!!!
+
+#
+#
+# makenek clean; 
+# echo $dlt > dt.dat 
+
+k=1
+for i in `seq 5 16`; do
+    echo '      parameter(lxn='$i')' > SIZEn; touch SIZE; 
+    echo 'lx1='$i
+    makenek clean; makenek c; 
+    nekli c;
+    mv c.log cdx$k.log;               
+    k=$((k+1))
+    echo $k
+done

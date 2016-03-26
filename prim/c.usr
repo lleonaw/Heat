@@ -93,12 +93,22 @@ c-----------------------------------------------------------------------
       integer nt, iont 
       logical ifdt, ifdx
 
-      ifhedg = .true.   ! for heat problem with dg 
-      ifdt   = .false.   ! temporal convergence 
+      ifhedg = .true.    ! for heat problem with dg 
+      ifdt   = .true.    ! temporal convergence 
+      ifdt   = .false.   ! temporal convergence/ stab. 
       ifdx   = .false.   ! spatial convergence 
+
       one = 1.
       pi  = 4.*atan(one)
-      dt     = one/10000.
+
+      if(ifdt) then 
+         open(unit=88,file='dt.dat')
+         read(88,*) dt
+         close(88) 
+      else 
+         dt = one/100000.
+      endif 
+
       tfinal = 2.      ! run to the same final time 
       nsteps = int(tfinal/dt) 
       iostep = int(nsteps/20) 
@@ -106,7 +116,6 @@ c-----------------------------------------------------------------------
       param(11) = -nsteps  ! lock nsteps 
       param(12) = -dt      ! lock dt 
       param(13) = -iostep  ! lock iostep 
-      write(6,*) 'nt',nsteps,'dt',dt,'iont',iostep
 c     write(6,*) 'p11',param(11),'dt',param(12),'iont',param(13)
 
       return
@@ -202,6 +211,8 @@ c-----------------------------------------------------------------------
       real    tmper   ! x, y are in NEKUSE 
       
 c     tmper = exp(-nu*pi*pi*time/4.)*cos(pi*x/2.)*cos(pi*y/2.) ! not P
+      one = 1.
+      pi  = 4.*atan(one)
       tmper = exp(-nu*pi*pi*time)*sin(pi*x) 
 c     tmper = exp(-nu*pi*pi*time)*sin(pi*y) 
 

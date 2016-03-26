@@ -1,0 +1,9 @@
+#
+#
+#
+# Will have two lines 
+# grep -A1 'max err' logfile > terr.dat
+
+# Only have one line  
+mv terr.dat terr1.dat
+awk '/Step, Time, max error/{getline; print}' logfile > terr.dat
