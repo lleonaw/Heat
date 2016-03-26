@@ -36,13 +36,13 @@ if(ifeig)
 end
 for initflg=2:2 % 4
    disp(['Init flg = ',num2str(initflg)]); 
-   for j=Nn:Nn
+   for j=1:1%Nn
 %     N = 2^j; Nx = N + 1;
-      N = 2*j; Nx = N + 1;
+      N = 12; Nx = N + 1;
       for i=1:Nen
-%        Ne = (i)^2;
          Ne = (2)^i;
-%        Ne = 10;
+%        Ne = (2)^i;
+%        Ne = 9;
          if(ifsem)
              [succ,infer,se_VK,se_DK,se_VL,se_DL] = sem1d_eig; 
              if(succ)
@@ -110,22 +110,22 @@ if(ifeig)
     title(['Eig values of SE and DG, Ne = ',num2str(Ne)],'fontsize',18); 
 end
 if(ifeig)
-% For scaling with Ne, fixed N to be Nn 
-    figure(110);
-    loglog(se_plne(:,Nn), sekcd(:,Nn),'o-','linewidth',2.0); hold on; 
-    loglog(dg_plne(:,Nn), dgkcd(:,Nn),'x-','linewidth',2.0); 
-    loglog(dg_plne(:,Nn), 100.*dg_plne(:,Nn).^2,'-','linewidth',2.0); 
-    xlabel('Ne','fontsize',18); ylabel('\lambda_{max} / \lambda_{min}','fontsize',18); 
-    legend([{'SE'},{'DG'},{'N_e^{2}'}],'fontsize',15);
-    title(['Cond(K), for N = ',num2str(N)],'fontsize',18); hold off; 
+% For condition number scaling with Ne, fixed N to be Nn 
+%   figure(110);
+%   loglog(se_plne(:,Nn), sekcd(:,Nn),'o-','linewidth',2.0); hold on; 
+%   loglog(dg_plne(:,Nn), dgkcd(:,Nn),'x-','linewidth',2.0); 
+%   loglog(dg_plne(:,Nn), 100.*dg_plne(:,Nn).^2,'-','linewidth',2.0); 
+%   xlabel('Ne','fontsize',18); ylabel('\lambda_{max} / \lambda_{min}','fontsize',18); 
+%   legend([{'SE'},{'DG'},{'N_e^{2}'}],'fontsize',15);
+%   title(['Cond(K), for N = ',num2str(N)],'fontsize',18); hold off; 
 
-    figure(111); 
-    loglog(se_plne(:,Nn), selcd(:,Nn),'o-','linewidth',2.0); hold on; 
-    loglog(dg_plne(:,Nn), dglcd(:,Nn),'x-','linewidth',2.0); 
-    loglog(dg_plne(:,Nn), 100.*dg_plne(:,Nn).^2,'-','linewidth',2.0); 
-    xlabel('Ne','fontsize',18); ylabel('\lambda_{max} / \lambda_{min}','fontsize',18); 
-    legend([{'SE'},{'DG'},{'N_e^{2}'}],'fontsize',15);
-    title(['Cond(inv(B)K), for N = ',num2str(N)],'fontsize',18); hold off; 
+%   figure(111); 
+%   loglog(se_plne(:,Nn), selcd(:,Nn),'o-','linewidth',2.0); hold on; 
+%   loglog(dg_plne(:,Nn), dglcd(:,Nn),'x-','linewidth',2.0); 
+%   loglog(dg_plne(:,Nn), 100.*dg_plne(:,Nn).^2,'-','linewidth',2.0); 
+%   xlabel('Ne','fontsize',18); ylabel('\lambda_{max} / \lambda_{min}','fontsize',18); 
+%   legend([{'SE'},{'DG'},{'N_e^{2}'}],'fontsize',15);
+%   title(['Cond(inv(B)K), for N = ',num2str(N)],'fontsize',18); hold off; 
 
 % For scaling with N , fixed Ne 
 %   figure(112);
@@ -158,24 +158,37 @@ end
 
 %% spatial convergence
 %% Fix Ne, varying N 
-%if(ifsem)
+ if(ifsem)
 %  figure(10+9);  
 %  semilogy(se_plnx(1,:),se_ere(1,:),'o-','linewidth',1.5);hold on;
-%  semilogy(se_plnx(1,:),exp(-3*se_plnx(1,:)),'x-','linewidth',1.5); 
-%  legend('Err data','e^{-N}'); 
+%  semilogy(se_plnx(1,:),1e4.*exp(-2*se_plnx(1,:)),'x-','linewidth',1.5); 
+%  legend('Err data','C^{-N}'); 
 % %legend('Err data','N^{-2}'); 
-%  xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%  title('Max pointwise relative error, poisson, SEM, N_e = 2');
-%end
-%if(ifdgm)
+%  ylim([1e-12,1e2]);
+%  xlabel('$N$','Interpreter','Latex','fontsize',18); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex','fontsize',18);
+%  title(['Max error in u_{xx}, u = sin(\pi x), SEM, N_e = ',num2str(Ne)],'fontsize',18);
+%% xlabel('$N$','Interpreter','Latex'); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex');
+%% title(['Max error in $u_{xx}$ for $\tilde{u} = \sin(\pi x)$, SEM, N_e = ',num2str(Ne)],'Fontsize',18,'Interpreter','Latex');
+ end
+ if(ifdgm)
 %  figure(20+9);  
 %  semilogy(dg_plnx(1,:),dg_ere(1,:),'o-','linewidth',1.5);hold on;
-%  semilogy(dg_plnx(1,:),exp(-3*dg_plnx(1,:)),'x-','linewidth',1.5); 
-%  legend('Err data','e^{-N}'); 
+%  semilogy(dg_plnx(1,:),1e4.*exp(-2*dg_plnx(1,:)),'x-','linewidth',1.5); 
+%  legend('Err data','C^{-N}'); 
 % %legend('Err data','N^{-2}'); 
-%  xlabel('$N$','Interpreter','Latex'); ylabel('$\|u - \tilde{u}\|_{\infty}$','Interpreter','Latex');
-%  title('Max pointwise relative error, poisson, DG, N_e = 2');
-%end
+%  ylim([1e-12,1e2]);
+%  xlabel('$N$','Interpreter','Latex','fontsize',18); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex','fontsize',18);
+%  title(['Max error in u_{xx}, u = sin(\pi x), DGM, N_e = ',num2str(Ne)],'fontsize',18);
+% Combined 
+   figure(30+9);  
+   semilogy(dg_plnx(1,:),dg_ere(1,:),'o-','linewidth',1.5);hold on;
+   semilogy(se_plnx(1,:),se_ere(1,:),'o-','linewidth',1.5);
+   semilogy(dg_plnx(1,:),1e4.*exp(-2*dg_plnx(1,:)),'x-','linewidth',1.5); 
+   legend([{'Err data, DG'},{'Err data, SE'},{'C^{-N}'}],'fontsize',18); 
+   ylim([1e-12,1e2]);
+   xlabel('$N$','Interpreter','Latex','fontsize',18); ylabel('$\|u_{xx} - \tilde{u}_{xx}\|_{\infty}$','Interpreter','Latex','fontsize',18);
+   title(['Max error in u_{xx}, u = sin(\pi x), DG and SE, N_e = ',num2str(Ne)],'fontsize',18);
+ end
 
 % temporal convergence 
 % figure(9);  

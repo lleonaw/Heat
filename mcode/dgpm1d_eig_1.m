@@ -3,11 +3,10 @@
 %  Explicit scheme, SSP-RK2
 %  New primal form formulation, refer to heatwriteup/writeup/heat.pdf
 % --- 
-%   Tue Mar 22 13:42:54 CDT 2016
+%   Sat Mar 12 21:37:38 CST 2016
 %   . Spectrum of this thing 
-%   . Condition number for stiffness matrix K, and operator 
 % --- 
-function [succ,infer,VA,DA,VL,DL] = dgpm1d_eig
+function [succ,infer,VL,DL] = dgpm1d_eig
     global Ne Nx ifplt initflg T CFL dt
     N = Nx - 1;       % Numb of points in each elem.
     infer = 2e20; 
@@ -57,16 +56,17 @@ function [succ,infer,VA,DA,VL,DL] = dgpm1d_eig
 % 
     rhs = Mb*qs; 
     rhs = reshape(rhs,Nx*Ne,1);
-    Iq = eye(Nx*Ne-1); R=[Iq(1,:);Iq];      % Periodic bc - Ill-conditioned 
+    Iq = eye(Nx*Ne-1); R=[Iq(1,:);Iq];                  % Periodic bc - Ill-conditioned 
 % No boundary mask for DG 
     Ie = sparse(eye(Ne)); 
-    [VA,DA] = eig(A);                       % For stiffness matrix 
-    DA = sort(diag(DA)); 
-    [VL,DL] = eig( A, full(kron(Ie,Mb)));   % For derivative operator
+    [VL,DL] = eig( A, full(kron(Ie,Mb))); 
     DL = sort(diag(DL)); 
 %
     uxx0 = pi^2*u0; 
     uxx  = inv(kron(Ie,Mb))*A*(reshape(u0,[],1));
+    pluex = reshape(uxx0,Nx*Ne,1); 
+    infer = norm(pluex-uxx,Inf); 
+%   error('uxx '); 
 %
     plu = reshape(uxx,Nx*Ne,1); pluex = reshape(uxx0,Nx*Ne,1); 
     infer = norm(plu-pluex,Inf); 
@@ -77,8 +77,8 @@ function [succ,infer,VA,DA,VL,DL] = dgpm1d_eig
       plot(plx,pluex,'bx-',plx,plu  ,'r-');
       xlabel('-- x --'); ylabel('-- u --');
       title(['solution']);
-      legend('Exact','Num.'); drawnow ; pause;
-      hold off; 
+      legend('Exact','Num.'); drawnow ; pause(0.2);
+      hold off;
     end
     succ = true;
 end

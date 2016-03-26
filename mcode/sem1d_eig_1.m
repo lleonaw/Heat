@@ -1,6 +1,6 @@
 %  From bur_sp, to do poisson with sem 
 %  This code is for spectral (element) solution 
-function [succ,infer,VK,DK,VL,DL] = sem1d_eig
+function [succ,infer,VL,DL] = sem1d_eig
     global Ne Nx ifplt initflg T CFL dt
     N = Nx - 1; 
     [Kh,Mh,Ch,Dh,z,w] =  semhat(N);
@@ -71,8 +71,6 @@ function [succ,infer,VK,DK,VL,DL] = sem1d_eig
 
 %  periodicity is more like connectivity rather than boundary condition 
 %   K, M = full(M); 
-    [VK, DK] = eig(K);    % Stiffness matrix 
-    DK = sort(diag(DK)); 
     [VL, DL] = eig(K,M);  % No periodic mask ....  %   [VL, DL] = eig(Kb,Mb); 
 %   idl = find( abs(diag(DL)) <12. & abs(diag(DL)) >9.); plot(P'*x,VL(:,idl)); % pause 
 %   plot(x,VL(:,idl)); % pause 
@@ -85,10 +83,10 @@ function [succ,infer,VK,DK,VL,DL] = sem1d_eig
     disp(['SEM :: Error in u_{xx} = ', num2str(infer)...
          ,', N = ',num2str(N),' , N_e = ',num2str(Ne)]); 
 
-    if(ifplt)
-        figure(20+initflg); 
-        plot(x,P*uxx,'x-','linewidth',2.5'); hold on; 
-        plot(x,uxx0,'-','linewidth',2.5');  pause 
-    end
+%   if(ifplt)
+%       figure(20+initflg); 
+%       plot(x,u,'x-','linewidth',2.5'); hold on; 
+%       plot(x,uex,'-','linewidth',2.5'); 
+%   end
     succ = true;
 end

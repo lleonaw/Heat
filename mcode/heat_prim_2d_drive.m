@@ -32,13 +32,13 @@ for itm=1:1%Ntn
 % RK4 should have a rather big CFL number, totally not seeing that 
 %   lambda \delta t < 2.8, which means huge eigenvalues are present ! 
 %   max CFL for RK4 is 0.15 ! 
-    CFL = 0.08 /(2.^itm);   % CFL = 0.045 runs, 0.05 does not 
+    CFL = 0.03 /(2.^itm);   % For rk4, CFL = 0.045 runs, 0.05 does not 
 %   CFL = 0.3 /(2.^itm) / 2.; 
-    for initflg=2:2 % 4
+    for initflg=5:5 % 4
 %      for j=1:ceil(Nn)
        for j=2:2%ceil(Nn)
        % Use CFL = 0.0125 for polynomial  
-          N = 2*(j-1); Nx = N + 1;
+          N = 5; Nx = N + 1; % Nx = 6, 
 %         N = j; Nx = N + 1; 
 %         N = 2^j; Nx = N + 1;
           for i=1:1%Nen

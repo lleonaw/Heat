@@ -48,21 +48,24 @@ function [succ,infer,VL,DL] = heat_prim_2d
     Kx = (2./dlx)*Kh; % 1d stiffness matrix, Kx = Ky
     Ky = (2./dly)*Kh; % 1d stiffness matrix, Kx = Ky
 % % Exact solution
-%   if(initflg==1)     % Init Case 1  
-%     u0 = 1.*cos(pi.*x/2.); qs = ((pi^2)/4.)*cos(pi.*x/2.);
-%   elseif(initflg==2) % Init Case 2 
-%     phi = pi*(1./4.),  % With phase shift, forward derivative works!    
+    if(initflg==1)     % Init Case 1  
+      u0 = 1.*cos(pi.*x/2.); qs = ((pi^2)/4.)*cos(pi.*x/2.);
+    elseif(initflg==2) % Init Case 2 
+      phi = pi*(1./4.),  % With phase shift, forward derivative works!    
       phi = 0.        ;  % With phase shift, forward derivative works!    
       u0 =  1.*sin(pi.*x+phi); qs = (pi^2)*u0;
-%     u0 =  1.*sin(pi.*y); qs =  (pi^2)*sin(pi.*x);
+      u0 =  1.*sin(pi.*y); qs =  (pi^2)*sin(pi.*x);
       uxx0 = -pi^2.*sin(pi.*x+phi); 
-%     uyy0 = -pi^2.*sin(pi.*y); 
-%   elseif(initflg==3) % Init Case 3 
-%     u0 = 1.*cos(pi.*x); qs = 1.*(pi^2)*cos(pi.*x);
-%   elseif(initflg==4) % Init Case 4 
-%     u0 = 1.- 1.*cos(2.*pi.*x); qs = -((pi^2)*4.).*cos(2.*pi.*x);
-%     u0 = 1.+ 1.*cos(pi.*x); qs = ((pi^2)).*cos(pi.*x);
-%   end
+      uyy0 = -pi^2.*sin(pi.*y); 
+    elseif(initflg==3) % Init Case 3 
+      u0 = 1.*cos(pi.*x); qs = 1.*(pi^2)*cos(pi.*x);
+    elseif(initflg==4) % Init Case 4 
+      u0 = 1.- 1.*cos(2.*pi.*x); qs = -((pi^2)*4.).*cos(2.*pi.*x);
+      u0 = 1.+ 1.*cos(pi.*x); qs = ((pi^2)).*cos(pi.*x);
+    elseif(initflg==5) % Init Case 5, dis-continuous init
+      u0 = rand(size(x))*2. - 1.;  % From -1. to 1. 
+      uxx0 = -pi^2.*sin(pi.*x); 
+    end
 
 % % Full 2 face - R matrix - R2, for ONE 2D element  
     In = eye(Nx); R2 = zeros(4*Nx, Nx*Nx); 
@@ -179,35 +182,43 @@ function [succ,infer,VL,DL] = heat_prim_2d
 %     error('k1 in 2d'); 
 % % From prev 1D code 
 % %    RK2 
-%     [urh] = lh_pois(u,Mb,Db,Kb,nu,qqt);   
-%     u1    = u + dt.*(Mb \ urh);             % First stage of rk 2
-%     [urh] = lh_pois(u1,Mb,Db,Kb,nu,qqt);   
-%     u     = 0.5*(u + u1 + dt.*(Mb\ urh));  % Second stage of rk 2
-% %    RK4 
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
                                glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k1 = M \ urh; % trk = t; 
-      u1  = u + 0.5*dt*k1;                                % First stage 
+      urh = - nu * urh; k1 = M \ urh; 
+%     nu, %     Ku, Gtu, Gu, Hu, %     urh, %     pause,
+      u1    = u + dt.*k1;             % First stage of rk 2
       [urh,Ku,Gtu,Gu,Hu] = lh_pois(u1,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
                                glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k2 = M \ urh; % trk = t; 
-      u2  = u + 0.5*dt*k2;                                % First stage 
-      [urh,Ku,Gtu,Gu,Hu] = lh_pois(u2,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k3 = M \ urh; % trk = t + 0.5*dt; 
-      u3 = u + 1.0*dt*k3;                                % Thrid stage 
-      [urh,Ku,Gtu,Gu,Hu] = lh_pois(u3,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
-                               glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
-      urh = - nu*urh; k4 = M \ urh; % trk = t + 0.5*dt; 
-      u  = u + dt*(k1/6. + k2/3. + k3/3. + k4/6.);       % Fourth stage
+      urh = - nu * urh; k2 = M \ urh; 
+      u     = 0.5*(u + u1 + dt.*k2);  % Second stage of rk 2
+% %    RK4 
+%     [urh,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
+%                              glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
+%     urh = - nu*urh; k1 = M \ urh; % trk = t; 
+%     u1  = u + 0.5*dt*k1;                                % First stage 
+%     [urh,Ku,Gtu,Gu,Hu] = lh_pois(u1,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
+%                              glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
+%     urh = - nu*urh; k2 = M \ urh; % trk = t; 
+%     u2  = u + 0.5*dt*k2;                                % First stage 
+%     [urh,Ku,Gtu,Gu,Hu] = lh_pois(u2,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
+%                              glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
+%     urh = - nu*urh; k3 = M \ urh; % trk = t + 0.5*dt; 
+%     u3 = u + 1.0*dt*k3;                                % Thrid stage 
+%     [urh,Ku,Gtu,Gu,Hu] = lh_pois(u3,Mx,My,Dx,Dy,Kx,Ky,nu,R2,...
+%                              glb_indx,bdry_flg,areax,areay,nhx,nhy,it);
+%     urh = - nu*urh; k4 = M \ urh; % trk = t + 0.5*dt; 
+%     u  = u + dt*(k1/6. + k2/3. + k3/3. + k4/6.);       % Fourth stage
       t = t + dt;
       if(initflg==2) 
-          uex = exp(-nu(1).*(pi)^2.*t).*sin(pi.*x + phi);
+          uex = exp(-nu(1).*(pi)^2.*t).*sin(pi.*x);
+      elseif(initflg==5) 
+          uex = exp(-nu(1).*(pi)^2.*t).*u0; 
+          % Error doesn't make any sense; how to compute error?  
       end 
       er      = u - uex; 
       tsv(it) = t; 
       mxtlu   = norm(uex,Inf); infert(it) = norm(er,Inf)/ mxtlu; 
-      if(ifplt && mod(it,ceil(Nt/4))==0)
+      if(ifplt && mod(it,ceil(Nt/10))==0)
 %       plsc = plt_fld(4,uex,x2,y2,'uex',0);  % 
         plsc = plt_fld(6,u,x2,y2,'u',0);  % 
         pause(0.01); 
@@ -361,9 +372,10 @@ function [urhs,Ku,Gtu,Gu,Hu] = lh_pois(u,Mx,My,Dx,Dy,Kx,Ky,nu,R2,glb_indx,bdry_f
 % Pure central is very bad, modify q* in eval_fu - done
     global Ne Nx
     eta  = set_eta(Mx,My); he = sum(diag(areax(1:Nx,1:Nx))).*eye(4*Nx); 
-    if(kstep==1) 
-        eta(1,1), 
-    end
+%   if(kstep==1) 
+%       eta(1,1), 
+%       pause 
+%   end
     I = speye(Nx);  % (ly lx)/4 .* Mhat otimes Mhat
 %   error('eta?'); 
     Ku =(kron(My,Kx) + kron(Ky,Mx))* u; 
@@ -442,6 +454,8 @@ function [Gu] = g_eval(u,Dx,Dy,R2,glb_indx,bdry_flg,areax,areay,nhx,nhy)
 %   disp('Duy'); disp(Duy); 
 
     duf = nhx.*areay*R2*Dux + nhy.*areax*R2*Duy; 
+%   u, Dux, Duy, duf, 
+%   pause
 %   duf = nhx*R2*Dux + nhy*R2*Duy;  
   % comparing to 1d
   % not matching boudary values
