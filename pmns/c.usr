@@ -1,0 +1,446 @@
+c-----------------------------------------------------------------------
+c
+c  User specified routines:
+c
+c     - boundary conditions
+c     - initial conditions
+c     - variable properties
+c     - forcing function for fluid (f)
+c     - forcing function for passive scalar (q)
+c     - general purpose routine for checking errors etc.
+c
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,iel)
+      include 'SIZE'
+c     include 'TSTEP'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+      udiff =0.
+      utrans=0.
+      return
+      end
+c
+c-----------------------------------------------------------------------
+      subroutine userf  (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+c
+      FFX = 0.0
+      FFY = 0.0
+      FFZ = 0.0
+      return
+      end
+c
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+      QVOL   = 0.0
+      SOURCE = 0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+
+      if(ifhedg) then 
+        call dg_heat
+      else 
+        call dg_flow
+      endif
+      call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc (ix,iy,iz,iside,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+      ux=1.0
+      uy=0.0
+      uz=0.0
+      temp=0.0
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+c     include 'TOTAL'
+      include 'NEKUSE'
+c
+      ux = 0.
+      uy = 0.
+      uz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      integer nt, iont 
+      logical ifdt, ifdx
+
+      ifhedg = .true.    ! for heat problem with dg 
+      ifhedg = .false.   ! for heat problem with dg 
+      ifdt   = .true.    ! temporal convergence 
+      ifdt   = .false.   ! temporal convergence/ stab. 
+      ifdx   = .false.   ! spatial convergence 
+
+      one = 1.
+      pi  = 4.*atan(one)
+
+      if(ifdt) then 
+         write(6,*) 'Read dt from dt.dat'
+         open(unit=88,file='dt.dat')
+         read(88,*) dt
+         close(88) 
+      else 
+         dt = one/100000.
+      endif 
+
+      tfinal = .02      ! run to the same final time 
+      nsteps = int(tfinal/dt) 
+      iostep = int(nsteps/20) 
+      dt     = real(tfinal/nsteps) 
+      param(11) = -nsteps  ! lock nsteps 
+      param(12) = -dt      ! lock dt 
+      param(13) = -iostep  ! lock iostep 
+c     write(6,*) 'p11',param(11),'dt',param(12),'iont',param(13)
+
+c     ifdg = .true.
+c Is this till needed? 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2
+      include 'SIZE'
+      include 'TOTAL'
+
+      xmin = -1.
+      xmax = 1.
+      call rescale_x(xm1,xmin,xmax)  ! Put geometry on [-1:1] x [-1:1]
+      call rescale_x(ym1,xmin,xmax)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Heat boundary routines 
+c-----------------------------------------------------------------------
+      subroutine userbc_t(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+     
+c     write(6,*) 'Heat Dirichlet boundary condition ' 
+      tem = 0.0            ! Temperature at T / t boundary 
+c     call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc_f(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+
+c Temperature at F / f boundary, dTdn three components? 
+      write(6,*) 'Heat Neumann boundary condition , eval heat flux?' 
+      call exitt
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric_ht(ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer iel
+
+c     tem = cos(pi*x/2.) * cos(pi*y/2.)
+c     tem = sin(pi*x)
+      call exc_pnt(tem) 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_fld(tex)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      real    tex(lx1,ly1,lz1,lelt) 
+      integer ix, iy, iz, e 
+
+      do e = 1,nelt
+      do iz=1,lz1
+      do iy=1,ly1
+      do ix=1,lx1
+        call nekasgn(ix,iy,iz,e)
+        call exc_pnt(tex(ix,iy,iz,e))
+      enddo 
+      enddo 
+      enddo 
+      enddo 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_pnt(tmper)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      real    tmper   ! x, y are in NEKUSE 
+      
+c     tmper = exp(-nu*pi*pi*time/4.)*cos(pi*x/2.)*cos(pi*y/2.) ! not P
+      one = 1.
+      pi  = 4.*atan(one)
+      tmper = exp(-nu*pi*pi*time)*sin(pi*x) 
+c     tmper = exp(-nu*pi*pi*time)*sin(pi*y) 
+
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Flow boundary routines, need to update previous 
+c----- userbc_f where I used f as the dirichlet condition for flow 
+c-----------------------------------------------------------------------
+      subroutine userbc_v(ix,iy,iz,iside,e,eg)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer e,eg
+
+c     if(abs(x+2.) .le. 1.e-8) then
+c         rux = 0.1*rho ! u = 0.1, c = 1. 
+c     else  
+c         rux = 0.
+c     endif
+c     rho = gama
+c     ruy = 0.0
+c     ruz = 0.0
+c     enr = 1./(gama-1.) + .5*(rux*rux + ruy*ruy + ruz*ruz)/rho
+c     ! pressure kept at one 
+
+      call exc_sol_shear(rho,rux,ruy,ruz,enr,pp
+     $                  ,x,y,z,gama, miu)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric_fl(ix,iy,iz,iel)
+      include 'SIZE'
+      include 'TSTEP'
+      include 'NEKUSE'
+      include 'DGUSE'
+      integer iel
+
+c     rho = gama
+c     enr = 1.0/(gama-1.)
+c     rux = 0.
+c     ruy = 0.
+c     ruz = 0.
+c     pp  = (gama-1.)*(enr - .5*(rux*rux + ruy*ruy + ruz*ruz)/rho ) ! = 1 
+
+      call exc_sol_shear(rho,rux,ruy,ruz,enr,pp
+     $                  ,x,y,z,gama, miu)
+
+      return
+      end
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c automatically added by makenek
+      subroutine usrsetvert(glo_num,nel,nx,ny,nz) ! to modify glo_num
+      integer*8 glo_num(1)
+      return
+      end
+c-----------------------------------------------------------------------
+      include 'dgf3.f'
+c-----------------------------------------------------------------------
+      subroutine exc_sol_fld(rhex,ruxex,ruyex,ruzex,enex,tm)
+c    
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      include 'DGUSE'
+      real tm
+      real     rhex(lx1,ly1,lz1,lelt), ruzex(lx1,ly1,lz1,lelt)
+     $      , ruxex(lx1,ly1,lz1,lelt), ruyex(lx1,ly1,lz1,lelt)
+     $      ,  enex(lx1,ly1,lz1,lelt),  ppex(lx1,ly1,lz1,lelt)
+c    
+c    -- . direct eval -- 
+      nel = nelt
+      nxyz = nx1*ny1*nz1
+
+      do iel=1,nel
+         ieg = lglel(iel)
+         do k= 1,nz1
+         do j= 1,ny1
+         do i= 1,nx1
+
+             call nekasgn(i,j,k,iel) ! 1136, bdry.f
+c   -- isen --
+c            call exc_sol_isen( rhex(i,j,k,iel)
+c    $           ,ruxex(i,j,k,iel),ruyex(i,j,k,iel),ruzex(i,j,k,iel)
+c    $           , Enex(i,j,k,iel), ppex(i,j,k,iel), x, y,z,tm, gama)
+c   -- shear --
+             call exc_sol_shear( rhex(i,j,k,iel)
+     $           ,ruxex(i,j,k,iel),ruyex(i,j,k,iel),ruzex(i,j,k,iel)
+     $           , Enex(i,j,k,iel), ppex(i,j,k,iel), x,y,z,gama,miu)
+
+         enddo 
+         enddo
+         enddo
+      enddo
+c     
+c     if(nid.eq.0) write(6,*) 'done :: exact solution field for isen'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_sol_shear(rh,rux,ruy,ruz,en,pp,x,y,z,gama,miu)
+c 
+c     Input:
+c        .  x, y, time 
+c     Output:
+c        .  rh, ux, uy, pp, en
+c    
+      common /isencst/   beta, xctr, yctr
+      real rh, rux, ruy, ruz, en, pp, x, y, z, tm
+      real ux, uy, uz
+      real miu, gama
+c    
+c    -- . direct eval -- 
+c     NOTE: gama = 1.5
+c           miu  = 0.01 
+c           prt  = +\infty
+
+      ux = y*y 
+      uy = 0.
+      uz = 0.
+
+      rh  = 1. 
+      en  = (2.*miu*x + 10.) / ( gama - 1.) + (y**4)/2. 
+      pp  = (en - rh*(ux*ux + uy*uy)/2.)*(gama - 1.) 
+c     en  = (pp)/(gama - 1.) + rh*(ux*ux + uy*uy)/2.
+      rux = rh*ux
+      ruy = rh*uy
+      ruz = rh*uz
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine exc_sol_isen(rh,rux,ruy,ruz,en,pp,x,y,z,tm,gama)
+c 
+c     Input:
+c        .  x, y, time 
+c     Output:
+c        .  rh, ux, uy, pp, en
+c    
+      common /isencst/   beta, xctr, yctr
+      real rh, rux, ruy, ruz, en, pp, x, y, z, tm
+      real ux, uy, uz
+      real r2, tmp, one, pi, pi2, bt2 
+      real xmu, ymv, gama
+c    
+c    -- . direct eval -- 
+      one = 1.
+      pi  = 4.*atan(one)
+      pi2 = pi**2
+      bt2 = beta**2
+
+      xmu = x - tm*1. !   book has typo  !!! 
+      ymv = y - tm*0.
+c to have periodic boundary, tm change to 
+
+c     tm11 = tm - (int((tm - 5.)/10.)+int(1))*10.
+c     xmu = x - tm11*1. !   book has typo  !!! 
+c     ymv = y - tm11*0.
+
+      r2 = (xmu - xctr)**2  + (ymv - yctr)**2 
+      e1 = exp(1. - r2)
+      e2 = e1**2.
+      ux = 1. - beta*(ymv - yctr)*(exp(1. - r2))/(2.*pi)
+      uy =      beta*(xmu - xctr)*(exp(1. - r2))/(2.*pi)
+      uz = 0.
+
+      tmp = (gama - 1.)*(bt2)*(exp(2.*(1. - r2)))/(16.*gama*(pi2))
+      rh  = (1.- tmp)**(1./(gama - 1.))
+      pp  = (rh)**(gama)
+      en  = (pp)/(gama - 1.) + rh*(ux*ux + uy*uy)/2.
+      rux = rh*ux
+      ruy = rh*uy
+      ruz = rh*uz
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine err_sol_fld(rhex,rvxex,rvyex,rvzex,enex
+     $                       , rh,  rvx,  rvy,  rvz, en) ! compare 
+      include 'SIZE'
+      include 'TOTAL'
+c 
+c     Evaluate error between num. & exact solutions fields
+c     Input:
+c     Outpu:
+c        .  Second norm of errors 
+c    
+      real       rh(1),   rvx(1) ,   rvy(1),   rvz(1),    en(1)
+      real     rhex(1), rvxex(1) , rvyex(1), rvzex(1),  enex(1)
+
+      real      er1(lx1*ly1*lz1*lelt), er2(lx1*ly1*lz1*lelt)
+     $        , er3(lx1*ly1*lz1*lelt), er4(lx1*ly1*lz1*lelt)
+     $        , er5(lx1*ly1*lz1*lelt)
+
+      n    = nx1*ny1*nz1*nelt
+
+      call sub3(er1,  rh,  rhex, n)
+      call sub3(er2, rvx, rvxex, n)
+      call sub3(er3, rvy, rvyex, n)
+      call sub3(er4, rvz, rvzex, n)
+      call sub3(er5,  en,  enex, n)
+c     call outpost( er2, er3, er5, er1, er4,'err')
+
+c  -- Inf norm -- 
+c     erni = glamax  (er,n)
+c  -- 2nd norm -- 
+
+      ern2 = gl2norm (er1,n)  ! math.f, ln 1146
+      if(nid.eq.0) write(6,*) '2nd norm error, density, ', ern2
+      ern2 = gl2norm (er2,n)  ! 
+      if(nid.eq.0) write(6,*) '2nd norm error,    rux , ', ern2
+      ern2 = gl2norm (er3,n)  ! 
+      if(nid.eq.0) write(6,*) '2nd norm error,    ruy , ', ern2
+      ern2 = gl2norm (er4,n)  ! 
+      if(nid.eq.0) write(6,*) '2nd norm error,    ruz , ', ern2
+      ern2 = gl2norm (er5,n)  ! 
+      if(nid.eq.0) write(6,*) '2nd norm error,    ener, ', ern2
+
+      if(nid.eq.0) write(6,*) 'done :: err compute'
+
+      return
+      end
+c-----------------------------------------------------------------------
+

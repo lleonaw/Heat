@@ -46,10 +46,13 @@ c      \----------------------------------/
 
 c     miu = 0.01 
 c     miu = 1.0e-20  ! 0, inviscid, Euler equations
-      miu = param(2) 
+c     miu = param(2) 
       prt = 2.0e20  ! large prandtl number => neglib. thermal 
                     ! or just comment out lines in vis_flx 
       gama = 1.4
+c     For shear 
+      gama = 1.5
+      miu  = 0.01
 
       call dg_advect_setup
 
@@ -463,6 +466,8 @@ c-----------------------------------------------------------------------
       tmstpp = 3      ! third order for comparing with Matlab 
       flxtyp = 2      ! 1 - LF , 2 - Roe( not there yet )
       flxtyp = 1      ! 1 - LF , 2 - Roe( not there yet )
+      diftyp = 1      ! 1 - 2-PC, 2 - SIPG
+      diftyp = 2      ! 1 - 2-PC, 2 - SIPG
 c     
       ifstr = .true.  ! strong form 
       ifstr = .false. ! weak  form 
@@ -516,7 +521,7 @@ c     for outpost
         write(6,*) 'o------------------------------------------------o'
       endif
       if(ifdifu) then 
-        write(6,*) '| Viscous on (Weak form)          '
+        write(6,*) '| Viscous on (1 - PC, 2 - SIPG)   ',diftyp
         write(6,*) 'o------------------------------------------------o'
       else
         write(6,*) '| Viscous off                     '
@@ -1036,9 +1041,10 @@ c-----------------------------------------------------------------------
       include 'TOTAL'
       include 'DGUSE'
       real    rhs1(1), rhs2(1), rhs3(1), rhs4(1), rhs5(1)
+      real    rhd1(lt), rhd2(lt), rhd3(lt), rhd4(lt), rhd5(lt)
       real    tm
 
-      if(ifdifu) then
+      if( ifdifu .and.(diftyp.eq.1)) then
           call pre_difu_dg        ! solve aux var. 
       endif
 
@@ -1047,6 +1053,16 @@ c-----------------------------------------------------------------------
       call comp_dg_rhs(rhs3,3,tm)
       if(if3d) call comp_dg_rhs(rhs4,4,tm)
       call comp_dg_rhs(rhs5,5,tm)
+
+      if( ifdifu .and.(diftyp.eq.2)) then
+          ! right hand side of diffusion for all eq. 
+          call difu_sipg_all(rhd1,rhd2,rhd3,rhd4,rhd5) 
+          call add2(rhs1,rhd1,n) 
+          call add2(rhs2,rhd2,n) 
+          call add2(rhs3,rhd3,n) 
+          if(if3d) call add2(rhs4,rhd4,n) 
+          call add2(rhs5,rhd5,n) 
+      endif
 
       if(ifdbg) then
           if(nid.eq.0) 
@@ -1092,10 +1108,611 @@ c     Adv done
 c 
 c     Diffusion operator 
       if(ifdifu) then
+        if(diftyp.eq.1) then
           call difu_dg(rhd, flg)  ! right hand side of diffusion 
           call add2   (rhs,rhd,n) 
+        endif
       endif
 c 
+      return
+      end
+c-----------------------------------------------------------------------
+c----- Diffusion operator, SIPG
+c-----------------------------------------------------------------------
+      subroutine difu_sipg_all(rhs1,rhs2,rhs3,rhs4,rhs5)
+c
+c    Diffusion rhs for all eq. 
+c     . no aux solve
+c     . symmetric  - some kind; it obvi in heat, not so much here
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+c     real     rhs1(1) , rhs2(1) , rhs3(1) , rhs4(1) , rhs5(1) 
+      real     rhs1(lx1*ly1*lz1*lelt) , rhs2(lx1*ly1*lz1*lelt) 
+     $       , rhs3(lx1*ly1*lz1*lelt) , rhs4(lx1*ly1*lz1*lelt) 
+     $       , rhs5(lx1*ly1*lz1*lelt) 
+c
+      n  = nx1*ny1*nz1*nelt
+      nf = nx1*nz1*2*ndim*nelt
+c
+c   output  - init to zero 
+      call rzero_all(rhs1,rhs2,rhs3,rhs4,rhs5,n)
+c     write(6,*) 'after init in sipg all'
+      ! Well we already know rhs1 should always be 0 
+c
+      call ki0(rhs1,rhs2,rhs3,rhs4,rhs5) ! ! V' K  U, I0 
+c     write(6,*) ' -- 1 -- '
+c
+      call gi1(rhs1,rhs2,rhs3,rhs4,rhs5) ! ! V' G1 U, I1 
+c     write(6,*) ' -- 2 -- ' 
+c
+      call gi2(rhs1,rhs2,rhs3,rhs4,rhs5) ! ! V' G2 U, I2 , maybe ^T?
+c     write(6,*) ' -- 3 -- '
+c
+      call hi3(rhs1,rhs2,rhs3,rhs4,rhs5) ! ! V' H  U, I3 , the same as
+c     write(6,*) ' -- 4 -- '
+c                                        ! !  ihu
+      call chsign(rhs1,n) 
+      call chsign(rhs2,n) 
+      call chsign(rhs3,n) 
+      if(if3d) call chsign(rhs4,n) 
+      call chsign(rhs5,n) 
+c     write(6,*) 'In difu sipg all'
+c   Nope not getting rhs1 all = 0  !!! 
+c
+c     stop 
+c
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine gi1(rhs1,rhs2,rhs3,rhs4,rhs5) ! !V' G  U, I1 
+c     Surf integral 
+c     Input: 
+c         . tmtp 
+c     Output: 
+c         . gu
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      parameter(le = lx1*ly1*lz1)
+      real     rhox(le), rhoy(le), rhoz(le)
+     $       , rhux(le), rhuy(le), rhuz(le)
+     $       , rhvx(le), rhvy(le), rhvz(le)
+c    $       , rhwx(le), rhwy(le), rhwz(le)
+     $       , enex(le), eney(le), enez(le)
+      integer  e, n, nf, f, i, k
+      real     k11(ldim+2,ldim+2),  k12(ldim+2,ldim+2)
+     $       , k21(ldim+2,ldim+2),  k22(ldim+2,ldim+2)
+      real     r1 (le,lelt,4), r2 (le,lelt,4)
+     $       , rf1(lf,4), rf2(lf,4), rfn(lf,4)
+     $       , rfsv(lf), gu(lt), img(lt)
+c
+      n     = nx1*ny1*nz1*nelt
+      nfaces=2*ndim
+      nxz   =nx1*nz1
+      nxyz=nx1*ny1*nz1
+      nf    = nx1*nz1*2*ndim*nelt
+c     
+      do e=1,nelt
+c       . 
+        call gradm11(rhox,rhoy,rhoz,tmrh,e) 
+        call gradm11(rhux,rhuy,rhuz,tmrx,e) 
+        call gradm11(rhvx,rhvy,rhvz,tmry,e) 
+c       call gradm11(rhwx,rhwy,rhwz,tmrz,e) 
+        call gradm11(enex,eney,enez,tmen,e) 
+        do k=1,nxyz
+c        . form k11, k12, k21, k22
+          call k_pnt2(k11,k12,k21,k22
+     $        , tmrh(k,1,1,e),tmrx(k,1,1,e),tmry(k,1,1,e)
+     $        , tmen(k,1,1,e)) 
+          if(k11(1,1).gt.0.0001) then 
+            write(6,*) 'k11(1,1) nonzero!'
+            write(6,*) 'k =',k,' e = ', e 
+          endif
+        do i=1,ndim+2 ! Equation number
+          r1(k,e,i) = k11(1,i)*rhox(k) + k11(2,i)*rhux(k) 
+     $              + k11(3,i)*rhvx(k) + k11(4,i)*enex(k) 
+     $              + k12(1,i)*rhoy(k) + k12(2,i)*rhuy(k) 
+     $              + k12(3,i)*rhvy(k) + k12(4,i)*eney(k) 
+          r2(k,e,i) = k21(1,i)*rhox(k) + k21(2,i)*rhux(k) 
+     $              + k21(3,i)*rhvx(k) + k21(4,i)*enex(k) 
+     $              + k22(1,i)*rhoy(k) + k22(2,i)*rhuy(k) 
+     $              + k22(3,i)*rhvy(k) + k22(4,i)*eney(k) 
+        enddo 
+        enddo 
+      enddo 
+c     write(6,*) ' -- 2.1 -- ' 
+c
+      call full2face(rf1(1,1),r1(1,1,1))
+      call full2face(rf1(1,2),r1(1,1,2))
+      call full2face(rf1(1,3),r1(1,1,3))
+      call full2face(rf1(1,4),r1(1,1,4))
+      call full2face(rf2(1,1),r2(1,1,1))
+      call full2face(rf2(1,2),r2(1,1,2))
+      call full2face(rf2(1,3),r2(1,1,3))
+      call full2face(rf2(1,4),r2(1,1,4))
+      k = 0
+      do e=1,nelt
+      do f=1,nfaces
+      do i=1,nxz
+         k=k+1
+        ! . dot with normal 
+         rfn(k,1) = (rf1(k,1)*unx(i,1,f,e)
+     $             + rf2(k,1)*uny(i,1,f,e))*area(i,1,f,e)
+         rfn(k,2) = (rf1(k,2)*unx(i,1,f,e)
+     $             + rf2(k,2)*uny(i,1,f,e))*area(i,1,f,e)
+         rfn(k,3) = (rf1(k,3)*unx(i,1,f,e)
+     $             + rf2(k,3)*uny(i,1,f,e))*area(i,1,f,e)
+         rfn(k,4) = (rf1(k,4)*unx(i,1,f,e)
+     $             + rf2(k,4)*uny(i,1,f,e))*area(i,1,f,e)
+      enddo 
+      enddo 
+      enddo 
+c  . equation 1
+      call copy     (rfsv,rfn(1,1),nf)
+      call gs_op    (dg_hndl,rfn(1,1),1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult    (rfn(1,1),0.5,nf)         ! times 2.
+      call chsign   (rfn(1,1),nf)             ! - ( a + b ) 
+      call add2     (rfsv,rfn(1,1),nf)        !  
+      call face2full(gu,rfsv)        !  
+      call invbf    (img, gu) 
+      call add2     (rhs1,img,n) 
+c  . equation 2
+      call copy     (rfsv,rfn(1,2),nf)
+      call gs_op    (dg_hndl,rfn(1,2),1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult    (rfn(1,2),0.5,nf)         ! times 2.
+      call chsign   (rfn(1,2),nf)             ! - ( a + b ) 
+      call add2     (rfsv,rfn(1,2),nf)        !  
+      call face2full(gu,rfsv)        !  
+      call invbf    (img, gu) 
+      call add2     (rhs2,img,n) 
+c  . equation 3
+      call copy     (rfsv,rfn(1,3),nf)
+      call gs_op    (dg_hndl,rfn(1,3),1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult    (rfn(1,3),0.5,nf)         ! times 2.
+      call chsign   (rfn(1,3),nf)             ! - ( a + b ) 
+      call add2     (rfsv,rfn(1,3),nf)        !  
+      call face2full(gu,rfsv)        !  
+      call invbf    (img, gu) 
+      call add2     (rhs3,img,n) 
+c  . equation 4
+      call copy     (rfsv,rfn(1,4),nf)
+      call gs_op    (dg_hndl,rfn(1,4),1,1,0)  ! 1 ==> +      , a- + a+(itr)
+      call cmult    (rfn(1,4),0.5,nf)         ! times 2.
+      call chsign   (rfn(1,4),nf)             ! - ( a + b ) 
+      call add2     (rfsv,rfn(1,4),nf)        !  
+      call face2full(gu,rfsv)        !  
+      call invbf    (img, gu) 
+      call add2     (rhs5,img,n) 
+c
+c     write(6,*) 'done in gi1'
+c
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine gi2(rhs1,rhs2,rhs3,rhs4,rhs5) ! !V' G  U, I1 
+c     Surf integral 
+c     Input: 
+c         . tmtp 
+c     Output: 
+c         . gu
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      parameter(le = lx1*ly1*lz1)
+      real     ruf(lf,4), ufsv(lf), rufx(lf,4), rufy(lf,4) 
+     $       , ruvx(le,lelt,4), ruvy(le,lelt,4)
+      real     k11(ldim+2,ldim+2),  k12(ldim+2,ldim+2)
+     $       , k21(ldim+2,ldim+2),  k22(ldim+2,ldim+2)
+      real     w1(le,4),w2(le,4),w3(le,4),w4(le,4) ,wemp(le,4)
+      real     rhs1(le,1),rhs2(le,1),rhs3(le,1),rhs4(le,1),rhs5(le,1) 
+     $       , rhs0(le,lelt) 
+      real     ni1(le,lelt), ni2(le,lelt), ni3(le,lelt), ni4(le,lelt)
+      integer  e, n, nf, f, i, k
+
+      n     = nx1*ny1*nz1*nelt
+      nfaces=2*ndim
+      nxz   =nx1*nz1
+      nxyz=nx1*ny1*nz1
+      nf    = nx1*nz1*2*ndim*nelt
+c  . Lift to face 
+      call full2face(ruf(1,1),tmrh)
+      call full2face(ruf(1,2),tmrx)
+      call full2face(ruf(1,3),tmry)
+      call full2face(ruf(1,4),tmen)
+c  
+      call copy  (ufsv,ruf(1,1),nf) 
+      call gs_op (dg_hndl,ruf(1,1),1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call cmult (ruf(1,1),0.5,nf)           ! times 2.
+      call chsign(ruf(1,1),nf)               ! - ( a + b ) 
+      call add2  (ruf(1,1),ufsv,nf)          !  
+c
+      call copy  (ufsv,ruf(1,2),nf) 
+      call gs_op (dg_hndl,ruf(1,2),1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call cmult (ruf(1,2),0.5,nf)           ! times 2.
+      call chsign(ruf(1,2),nf)               ! - ( a + b ) 
+      call add2  (ruf(1,2),ufsv,nf)          !  
+c
+      call copy  (ufsv,ruf(1,3),nf) 
+      call gs_op (dg_hndl,ruf(1,3),1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call cmult (ruf(1,3),0.5,nf)           ! times 2.
+      call chsign(ruf(1,3),nf)               ! - ( a + b ) 
+      call add2  (ruf(1,3),ufsv,nf)          !  
+c
+      call copy  (ufsv,ruf(1,4),nf) 
+      call gs_op (dg_hndl,ruf(1,4),1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call cmult (ruf(1,4),0.5,nf)           ! times 2.
+      call chsign(ruf(1,4),nf)               ! - ( a + b ) 
+      call add2  (ruf(1,4),ufsv,nf)          !  
+c     
+      k = 0
+      do e=1,nelt
+      do f=1,nfaces
+      do i=1,nxz
+         k=k+1
+        ! . dot with normal 
+         rufx(k,1) = ruf(k,1)*unx(i,1,f,e)*area(i,1,f,e)
+         rufy(k,1) = ruf(k,1)*uny(i,1,f,e)*area(i,1,f,e)
+         rufx(k,2) = ruf(k,2)*unx(i,1,f,e)*area(i,1,f,e)
+         rufy(k,2) = ruf(k,2)*uny(i,1,f,e)*area(i,1,f,e)
+         rufx(k,3) = ruf(k,3)*unx(i,1,f,e)*area(i,1,f,e)
+         rufy(k,3) = ruf(k,3)*uny(i,1,f,e)*area(i,1,f,e)
+         rufx(k,4) = ruf(k,4)*unx(i,1,f,e)*area(i,1,f,e)
+         rufy(k,4) = ruf(k,4)*uny(i,1,f,e)*area(i,1,f,e)
+      enddo 
+      enddo 
+      enddo 
+c
+      call face2full(ruvx(1,1,1),rufx(1,1))        !  
+      call face2full(ruvx(1,1,2),rufx(1,2))        !  
+      call face2full(ruvx(1,1,3),rufx(1,3))        !  
+      call face2full(ruvx(1,1,4),rufx(1,4))        !  
+      call face2full(ruvy(1,1,1),rufy(1,1))        !  
+      call face2full(ruvy(1,1,2),rufy(1,2))        !  
+      call face2full(ruvy(1,1,3),rufy(1,3))        !  
+      call face2full(ruvy(1,1,4),rufy(1,4))        !  
+c .
+      do e=1,nelt
+        do k=1,nxyz
+c        . form k11, k12, k21, k22
+          call k_pnt2(k11,k12,k21,k22
+     $        , tmrh(k,1,1,e),tmrx(k,1,1,e),tmry(k,1,1,e)
+     $        , tmen(k,1,1,e)) 
+        do i=1,ndim+2 ! Equation number
+          w1(k,i) = k11(1,i)*ruvx(k,e,1) + k11(2,i)*ruvx(k,e,2) 
+     $            + k11(3,i)*ruvx(k,e,3) + k11(4,i)*ruvx(k,e,4) 
+          w2(k,i) = k12(1,i)*ruvx(k,e,1) + k12(2,i)*ruvx(k,e,2) 
+     $            + k12(3,i)*ruvx(k,e,3) + k12(4,i)*ruvx(k,e,4) 
+          w3(k,i) = k21(1,i)*ruvy(k,e,1) + k21(2,i)*ruvy(k,e,2) 
+     $            + k21(3,i)*ruvy(k,e,3) + k21(4,i)*ruvy(k,e,4) 
+          w4(k,i) = k22(1,i)*ruvy(k,e,1) + k22(2,i)*ruvy(k,e,2) 
+     $            + k22(3,i)*ruvy(k,e,3) + k22(4,i)*ruvy(k,e,4) 
+        enddo 
+        enddo 
+c eq 1
+        call rzero    (ni1(1,e),nxyz)
+        call gradm11ts(ni1(1,e),w1(1,1),w2(1,1),wemp,e)
+        call gradm11ts(ni1(1,e),w3(1,1),w4(1,1),wemp,e)
+c eq 2
+        call rzero    (ni2(1,e),nxyz)
+        call gradm11ts(ni2(1,e),w1(1,2),w2(1,2),wemp,e)
+        call gradm11ts(ni2(1,e),w3(1,2),w4(1,2),wemp,e)
+c eq 3
+        call rzero    (ni3(1,e),nxyz)
+        call gradm11ts(ni3(1,e),w1(1,3),w2(1,3),wemp,e)
+        call gradm11ts(ni3(1,e),w3(1,3),w4(1,3),wemp,e)
+c eq 4
+        call rzero    (ni4(1,e),nxyz)
+        call gradm11ts(ni4(1,e),w1(1,4),w2(1,4),wemp,e)
+        call gradm11ts(ni4(1,e),w3(1,4),w4(1,4),wemp,e)
+      enddo 
+c   . 
+      call invbf(rhs0,ni1)
+      call add2 (rhs1,rhs0,n)
+      call invbf(rhs0,ni2)
+      call add2 (rhs2,rhs0,n)
+      call invbf(rhs0,ni3)
+      call add2 (rhs3,rhs0,n)
+      call invbf(rhs0,ni4)
+      call add2 (rhs5,rhs0,n)
+c
+c     write(6,*) 'done in gi2'
+c
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine ki0(rhs1,rhs2,rhs3,rhs4,rhs5) ! !V' K  U, I0 
+c     Vol integral 
+c     Input:        |   Output: 
+c         . tmtp    |       . rhs?
+c 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      parameter(le = lx1*ly1*lz1)
+      real     rhox(le), rhoy(le), rhoz(le)
+     $       , rhux(le), rhuy(le), rhuz(le)
+     $       , rhvx(le), rhvy(le), rhvz(le)
+c    $       , rhwx(le), rhwy(le), rhwz(le)
+     $       , enex(le), eney(le), enez(le)
+
+      real     k11(ldim+2,ldim+2),  k12(ldim+2,ldim+2)
+     $       , k21(ldim+2,ldim+2),  k22(ldim+2,ldim+2)
+      real     w1(le,ldim+2),w2(le,ldim+2),w3(le,ldim+2),w4(le,ldim+2)
+     $       , wemp(le,ldim+2)
+      real     rhs1(le,1),rhs2(le,1),rhs3(le,1),rhs4(le,1),rhs5(le,1) 
+     $       , rhs0(le,lelt) 
+      real     ni1(le,lelt), ni2(le,lelt), ni3(le,lelt), ni4(le,lelt)
+      integer  e, n, nf, f, i, k
+c
+      n      = nx1*ny1*nz1*nelt
+      nxyz   = nx1*ny1*nz1
+      nfaces = 2*ndim
+      nxz    = nx1*nz1
+      nf     = nx1*nz1*2*ndim*nelt
+      call rzero(wemp,nxyz) 
+c   . 
+      do e=1,nelt
+c       . From navier2.f, grad, 
+        call gradm11(rhox,rhoy,rhoz,tmrh,e) 
+        call gradm11(rhux,rhuy,rhuz,tmrx,e) 
+        call gradm11(rhvx,rhvy,rhvz,tmry,e) 
+c       call gradm11(rhwx,rhwy,rhwz,tmrz,e) 
+        call gradm11(enex,eney,enez,tmen,e) 
+        do k=1,nxyz
+c        . form k11, k12, k21, k22
+          call k_pnt2(k11,k12,k21,k22
+     $        , tmrh(k,1,1,e),tmrx(k,1,1,e),tmry(k,1,1,e)
+     $        , tmen(k,1,1,e)) 
+c        . wi's 
+        do i=1,ndim+2 ! Equation number
+          w1(k,i) = k11(1,i)*rhox(k) + k11(2,i)*rhux(k) 
+     $            + k11(3,i)*rhvx(k) + k11(4,i)*enex(k) 
+          w2(k,i) = k12(1,i)*rhoy(k) + k12(2,i)*rhuy(k) 
+     $            + k12(3,i)*rhvy(k) + k12(4,i)*eney(k) 
+          w3(k,i) = k21(1,i)*rhox(k) + k21(2,i)*rhux(k) 
+     $            + k21(3,i)*rhvx(k) + k21(4,i)*enex(k) 
+          w4(k,i) = k22(1,i)*rhoy(k) + k22(2,i)*rhuy(k) 
+     $            + k22(3,i)*rhvy(k) + k22(4,i)*eney(k) 
+        enddo
+        enddo
+c      . grad transpose
+c     equation 1 
+        call rzero    (ni1(1,e),nxyz) 
+        call gradm11ts(ni1(1,e),w1(1,1),w3(1,1),wemp,e)
+        call gradm11ts(ni1(1,e),w2(1,1),w4(1,1),wemp,e)
+c     equation 2 
+        call rzero    (ni2(1,e),nxyz) 
+        call gradm11ts(ni2(1,e),w1(1,2),w3(1,2),wemp,e)
+        call gradm11ts(ni2(1,e),w2(1,2),w4(1,2),wemp,e)
+c     equation 3 
+        call rzero    (ni3(1,e),nxyz) 
+        call gradm11ts(ni3(1,e),w1(1,2),w3(1,2),wemp,e)
+        call gradm11ts(ni3(1,e),w2(1,2),w4(1,2),wemp,e)
+c     equation 4 or 5? 
+        call rzero    (ni4(1,e),nxyz) 
+        call gradm11ts(ni4(1,e),w1(1,2),w3(1,2),wemp,e)
+        call gradm11ts(ni4(1,e),w2(1,2),w4(1,2),wemp,e)
+      enddo
+c   . 
+      call invbf    (rhs0,ni1)
+      call copy     (rhs1,rhs0,n)
+      call chsign   (rhs1,n)
+c
+      call invbf    (rhs0,ni2)
+      call copy     (rhs2,rhs0,n)
+      call chsign   (rhs2,n)
+c
+      call invbf    (rhs0,ni3)
+      call copy     (rhs3,rhs0,n)
+      call chsign   (rhs3,n)
+c
+      call invbf    (rhs0,ni4)
+      call copy     (rhs5,rhs0,n)
+      call chsign   (rhs5,n)
+c 
+c     write(6,*) 'done in ki0'
+c
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine k_pnt2(k11,k12,k21,k22,u1,u2,u3,u4)
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+c     real     k11(ldim+2,ldim+2), k12(ldim+2,ldim+2)
+c    $       , k21(ldim+2,ldim+2), k22(ldim+2,ldim+2)
+      real     k11(4,4), k12(4,4)
+     $       , k21(4,4), k22(4,4)
+      real     u1, u2, u3, u4
+      integer  nk
+
+      nk = (ndim+2)*(ndim+2)
+      call rzero(k11,nk)
+      call rzero(k12,nk)
+      call rzero(k21,nk)
+      call rzero(k22,nk)
+c     write(6,*) 'in kpnt2 - 1'
+
+c  . K11 
+      k11(1,2) = -(4.*miu*u2)/(3.*u1*u1)
+      k11(2,2) =  (4.*miu)   /(3.*u1)
+
+      k11(1,3) = -(   miu*u3)/(   u1*u1)
+      k11(3,3) =  (   miu)   /(   u1)
+
+      k11(1,4) = - miu*(4.*u2*u2/3.+u3*u3)/(u1*u1*u1)
+     $        + (gama*miu/prt)*(-u4/(u1*u1) + (u2*u2+u3*u3)/(u1*u1)) 
+      k11(2,4) =   miu*(4./3.-gama/prt)*(u2)/(u1*u1)
+      k11(3,4) =   miu*(1.   -gama/prt)*(u3)/(u1*u1)
+      k11(4,4) =   miu*(gama/prt)/(u1)
+
+c  . K12 
+      k12(1,2) =  (2.*miu*u3)/(3.*u1*u1)
+      k12(3,2) = -(2.*miu)   /(3.*u1)
+        
+      k12(1,3) = -(   miu*u2)/(   u1*u1)
+      k12(2,3) =  (   miu)   /(   u1)
+         
+      k12(1,4) = - miu*(1.*u2*u3/3.)/(u1*u1*u1)
+      k12(2,4) =   miu*(u3)/(u1*u1)
+      k12(3,4) = - miu*(2.*u2)/(3.*u1*u1)
+
+c  . K21 
+      k21(1,2) = -(   miu*u3)/(   u1*u1)
+      k21(3,2) =  (   miu)   /(   u1)
+
+      k21(1,3) =  (2.*miu*u2)/(3.*u1*u1)
+      k21(2,3) = -(2.*miu)   /(3.*u1)
+
+      k21(1,4) = - miu*(1.*u2*u3/3.)/(u1*u1*u1)
+      k21(2,4) = - miu*(2.*u3)/(3.*u1*u1)
+      k21(3,4) =   miu*(u2)/(u1*u1)
+
+c  . K22 
+      k22(1,2) = -(   miu*u2)/(   u1*u1)
+      k22(2,2) =  (   miu)   /(   u1)
+
+      k22(1,3) = -(4.*miu*u3)/(3.*u1*u1)
+      k22(3,3) =  (4.*miu)   /(3.*u1)
+
+      k22(1,4) = - miu*(u2*u2+4.*u3*u3/3.)/(u1*u1*u1)
+     $        + (gama*miu/prt)*(-u4/(u1*u1) + (u2*u2+u3*u3)/(u1*u1)) 
+      k22(2,4) =   miu*(1.   -gama/prt)*(u2)/(u1*u1)
+      k22(3,4) =   miu*(4./3.-gama/prt)*(u3)/(u1*u1)
+      k22(4,4) =   miu*(gama/prt)/(u1)
+
+c     write(6,*) 'in kpnt2 - 2'
+c
+c     write(6,*) 'done in eval K's at a pnt for 2D'
+c
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine hi3(rhs1,rhs2,rhs3,rhs4,rhs5) ! !
+c     Vol integral 
+c     Input: 
+c         . tmtp 
+c     Output: 
+c         . hu
+      include 'SIZE'
+      include 'TOTAL'
+      include 'DGUSE'
+      include 'DG'      ! dg_face is stored
+      real     hu1(lt), huf1(lf)
+     $       , hu2(lt), huf2(lf)
+     $       , hu3(lt), huf3(lf)
+     $       , hu4(lt), huf4(lf)
+     $       , hu5(lt), huf5(lf)
+     $       , imh(lt)
+      real     rf (lf),  rfsv(lf)
+     $       , ruf(lf), rufsv(lf)
+     $       , rvf(lf), rvfsv(lf)
+     $       , rwf(lf), rwfsv(lf)
+     $       , enf(lf), enfsv(lf)
+     $       , eta(lf), he(lf)
+      integer  e, n, npl, nf, f, i, k
+      real     rhs1(1) , rhs2(1) , rhs3(1) , rhs4(1) , rhs5(1) 
+c
+      n  = nx1*ny1*nz1*nelt
+      nfaces=2*ndim
+      nxz=nx1*nz1
+      npl = nx1 - 1
+      nf = nx1*nz1*2*ndim*nelt
+c     
+c   . Set eta and h 
+      call set_eta_he(eta,he) ! ! constants 
+c   . R u
+      if(if3d) then 
+            call full2face_all(  rf,  ruf,  rvf,  rwf,  enf
+     $                       , tmrh, tmrx, tmry, tmrz, tmen) 
+      else
+            call full2face_all2( rf,  ruf,  rvf,  enf
+     $                        , tmrh, tmrx, tmry, tmen) 
+      endif
+c
+c   . diff 
+c     P(eriodic), do nothing 
+c     call add2  (dvgf,bf1,nf)          ! P, implied in next step, a- + a+(bc)
+c
+      call copy  (rfsv,rf,nf) 
+      call cmult (rfsv,2.0,nf)          ! times 2.
+      call gs_op (dg_hndl,rf,1,1,0)     ! 1 ==> +      , a- + a+(itr)
+      call chsign(rf,nf)                ! - ( a + b ) 
+      call add2  (rfsv,rf,nf)           !  
+
+      call copy  (rufsv,ruf,nf) 
+      call cmult (rufsv,2.0,nf)         ! times 2.
+      call gs_op (dg_hndl,ruf,1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call chsign(ruf,nf)               ! - ( a + b ) 
+      call add2  (rufsv,ruf,nf)         !  
+
+      call copy  (rvfsv,rvf,nf) 
+      call cmult (rvfsv,2.0,nf)         ! times 2.
+      call gs_op (dg_hndl,rvf,1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call chsign(rvf,nf)               ! - ( a + b ) 
+      call add2  (rvfsv,rvf,nf)         !  
+
+      if(if3d) then 
+        call copy  (rwfsv,rwf,nf) 
+        call cmult (rwfsv,2.0,nf)       ! times 2.
+        call gs_op (dg_hndl,rwf,1,1,0)  ! 1 ==> +      , a- + a+(itr)
+        call chsign(rwf,nf)             ! - ( a + b ) 
+        call add2  (rwfsv,rwf,nf)       !  
+      endif
+
+      call copy  (enfsv,enf,nf) 
+      call cmult (enfsv,2.0,nf)         ! times 2.
+      call gs_op (dg_hndl,enf,1,1,0)    ! 1 ==> +      , a- + a+(itr)
+      call chsign(enf,nf)               ! - ( a + b ) 
+      call add2  (enfsv,enf,nf)           !  
+c  . area, eta, he 
+      k = 0
+      do e=1,nelt
+      do f=1,nfaces
+      do i=1,nxz
+         k=k+1
+         huf1(k) = rfsv(k)*area(i,1,f,e)*eta(k)/he(k) 
+         huf2(k) = rufsv(k)*area(i,1,f,e)*eta(k)/he(k) 
+         huf3(k) = rvfsv(k)*area(i,1,f,e)*eta(k)/he(k) 
+         if(if3d) then
+           huf4(k) = rwfsv(k)*area(i,1,f,e)*eta(k)/he(k) 
+         endif
+         huf5(k) = enfsv(k)*area(i,1,f,e)*eta(k)/he(k) 
+      enddo
+      enddo
+      enddo
+c  . back to volume 
+      call face2full(hu1,huf1)           !  
+      call face2full(hu2,huf2)           !  
+      call face2full(hu3,huf3)           !  
+      if(if3d) call face2full(hu4,huf4)  !  
+      call face2full(hu5,huf5)           !  
+c  . SUM to right hand side value
+      call invbf (imh, hu1)
+      call chsign(imh,n)                !  
+      call add2  (rhs1,imh,n)           !  
+      call invbf (imh, hu2)
+      call chsign(imh,n)                !  
+      call add2  (rhs2,imh,n)           !  
+      call invbf (imh, hu3)
+      call chsign(imh,n)                !  
+      call add2  (rhs3,imh,n)           !  
+      if(if3d) then 
+        call invbf (imh, hu4)
+        call chsign(imh,n)              !  
+        call add2  (rhs4,imh,n)         !  
+      endif
+      call invbf (imh, hu5)
+      call chsign(imh,n)                !  
+      call add2  (rhs5,imh,n)           !  
+c     write(6,*) 'done in hi3'
+c
       return
       end
 c-----------------------------------------------------------------------
@@ -3826,6 +4443,22 @@ c-----------------------------------------------------------------------
       call copy     ( bftm1, bfx4, nf)  ! copy into tmp 
       call fil_inter( bftm1, 0.)        ! zero out inter
       call gs_add_bc( flx4, bftm1) 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rzero_all(f1,f2,f3,f4,f5,n)  ! does not belong here 
+      include 'SIZE'
+      include 'TOTAL' 
+      parameter(lf=lx1*lz1*2*ldim*lelt)
+      real    f1(1), f2(1), f3(1), f4(1), f5(1)
+      integer n 
+
+      call rzero(f1, n) 
+      call rzero(f2, n) 
+      call rzero(f3, n) 
+      call rzero(f4, n) 
+      call rzero(f5, n) 
 
       return
       end
@@ -9158,12 +9791,6 @@ c
       call igu (gu)      ! - [v] \cdot grad u       ! 
 c     write(6,*) ' 3 .'  
 c     
-c         gu is missing factor of 4 
-c        gtu prbbly missing that as well
-c        reason: dxm1 does not have geom/jacob
-c        in axhelm, it is dealt with by 
-c        g1m1, etc, line 153 hmholtz.f, axhelm 
-c 
       call ihu (hu)      ! + eta/ h ([v] \cdot [u]) ! 
 c     write(6,*) ' 4 .'
 c     
